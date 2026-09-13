@@ -66,7 +66,7 @@ object TreeExplorer:
     def score(t: GameState, turn: Team): Double = evaluator(t, turn)
     def exactScore(t: GameState, turn: Team): Double =
       if t.ended then
-        val sign = if t.maybeWinner == Some(turn) then +1 else -1
+        val sign = if t.maybeWinner.contains(turn) then +1 else -1
         infinity * sign
       else queenVSQueenSituation(t, turn)
 

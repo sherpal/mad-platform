@@ -31,7 +31,7 @@ object App:
     )
 
     def devProdPath(path: String): String =
-      if scala.scalajs.LinkingInfo.developmentMode then path else "/static/" ++ path.stripPrefix("/")
+      if scala.scalajs.LinkingInfo.developmentMode then path else "/mad-the-game/" ++ path.stripPrefix("/")
 
     def app2(username: String) = div(
       Bar(

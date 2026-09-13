@@ -118,9 +118,9 @@ def esModule = Def.settings(scalaJSLinkerConfig ~= {
 })
 
 lazy val fastOptWorker =
-  taskKey[Unit]("fastOptJS the web-worker project, and copy the compiled file in server public dir.")
+  taskKey[Unit]("fastOptJS the web-worker project, and copy the compiled file in Vite's assets.")
 lazy val fullOptWorker =
-  taskKey[Unit]("fullOptJS the web-worker project, and copy the compiled file in server public dir.")
+  taskKey[Unit]("fullOptJS the web-worker project, and copy the compiled file in Vite's assets.")
 
 Global / fastOptWorker := {
   val _         = (`web-worker` / Compile / fastLinkJS).value
@@ -170,9 +170,4 @@ buildFrontend := {
   if (buildExit > 0) {
     throw new IllegalStateException(s"Building frontend failed. See above for reason")
   }
-
-  IO.copyDirectory(
-    baseDirectory.value / "frontend" / "dist",
-    baseDirectory.value / "deploy" / "dist" / "node-resources" / "static"
-  )
 }

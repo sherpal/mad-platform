@@ -8,7 +8,7 @@ package object globals {
   private val api = root / "api"
   private val ws  = root / "ws"
 
-  val webWorkerPath = "/static/web-worker/main.js"
+  val webWorkerPath = "/mad-the-game/web-worker/main.js"
 
   val madRulesPath = "http://www.doeraene.be/mad/MAD-rules.pdf"
 

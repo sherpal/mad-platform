@@ -14,6 +14,8 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
   console.log('mainJS', mainJS)
   const script = `<script type="module" src="${mainJS}"></script>`
 
+  const base = "/mad-the-game/"
+
   return {
     publicDir: './public',
     plugins: createHtmlPlugin({
@@ -26,8 +28,8 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
     }),
     server: {
       port: 3000,
-      open: "/"
+      open: base
     },
-    base: "/static/"
+    base: base
   }
 })
