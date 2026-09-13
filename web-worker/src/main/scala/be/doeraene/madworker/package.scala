@@ -16,7 +16,8 @@ package object madworker {
     def handle(state: GameState) = {
       val node = Node.MadGameStateNode(state)
       given TreeExplorer[GameState, GameAction, Team] =
-        Player.jPaulDoeTheoryTreeExplorer(aValue)(state)
+        //Player.jPaulDoeTheoryTreeExplorer(aValue)(state)
+        Player.claudeTheoryTreeExplorer
       node.scoreForAction(action, Node.MadGameStateNode(action(state)), state.turnOfTeam, turnAhead)
     }
 

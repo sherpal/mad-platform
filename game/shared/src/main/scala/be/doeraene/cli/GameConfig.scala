@@ -27,6 +27,13 @@ object GameConfig:
     */
   case class MadMatch(minimaxDepth: Int, config1: AIConfig, config2: AIConfig) extends GameConfig
 
+  /** @param iterations
+    *   number of hill-climbing rounds to run
+    * @param minimaxDepth
+    *   search depth used for every battery game while tuning (3 is fast, 4 is slow)
+    */
+  case class TuneClaude(iterations: Int, minimaxDepth: Int) extends GameConfig
+
   sealed trait AIConfig {
     def player(minimaxDepth: Int): MadPlayer
   }
@@ -35,6 +42,9 @@ object GameConfig:
 
     case class JPaulTheory(aValue: Double) extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.jPaulTheoryPlayer(minimaxDepth, aValue)
+    }
+    case class ClaudeTheory() extends AIConfig {
+      def player(minimaxDepth: Int): MadPlayer = Player.claudeTheoryPlayer(minimaxDepth)
     }
     case class Random() extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.randomMadPlayer
@@ -81,6 +91,22 @@ object GameConfig:
     val step = args(2).toDouble
 
     MadTournament(minA, maxA, step)
+  }
+
+  private def tuneClaudeConfig(args: Vector[String]): GameConfig = {
+    if args.isEmpty then {
+      println("""
+          |Usage: tune-claude <iterations> <minimax-depth>
+          |iterations: number of hill-climbing rounds to run
+          |minimax-depth: search depth used for every battery game (3 is fast, 4 is slow)
+          |Example: "run tune-claude 50 3"
+          |""".stripMargin)
+      throw RuntimeException("Early stop.")
+    }
+
+    if args.length < 2 then throw IllegalArgumentException(s"tune-claude requires 2 arguments")
+
+    TuneClaude(iterations = args(0).toInt, minimaxDepth = args(1).toInt)
   }
 
   private def bestActionConfig(args: Vector[String]): GameConfig = {
@@ -157,5 +183,6 @@ object GameConfig:
         case "best-action" => bestActionConfig(args.tail.toVector)
         case "tournament"  => madTournamentConfig(args.tail.toVector)
         case "ai-match"    => madMatchConfig(args.tail.toVector)
+        case "tune-claude" => tuneClaudeConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

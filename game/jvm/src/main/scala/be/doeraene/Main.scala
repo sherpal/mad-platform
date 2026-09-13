@@ -3,6 +3,7 @@ package be.doeraene
 import be.doeraene.cli.{AskForGameAction, GameConfig}
 import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
+import be.doeraene.mad.ai.tuning.ClaudeWeightTuner
 import be.doeraene.mad.ai.{tournament, Player}
 import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Team}
 
@@ -72,5 +73,29 @@ import scala.jdk.CollectionConverters.*
         case Some(team) => s"Winner is $team"
         case None       => "It's a tie!"
       })
+
+    case GameConfig.TuneClaude(iterations, minimaxDepth) =>
+      val batterySize = ClaudeWeightTuner.defaultBattery.size
+      println(s"Tuning ClaudeWeights: $iterations rounds, depth $minimaxDepth, battery of $batterySize games")
+
+      val (bestWeights, bestScore) = ClaudeWeightTuner.hillClimb(iterations, minimaxDepth) { step =>
+        val mark = if step.accepted then "accepted" else "rejected"
+        println(
+          f"[${step.iteration}%3d/$iterations] $mark%-8s " +
+            f"${step.fieldTried}%-24s ${step.oldValue}%8.3f -> ${step.triedValue}%8.3f  " +
+            f"tried=${step.triedScore}%.1f/$batterySize  best=${step.currentBestScore}%.1f/$batterySize"
+        )
+      }
+
+      println("=" * 70)
+      println(s"Best score: $bestScore / $batterySize")
+      println(s"Best weights: $bestWeights")
+
+      val resultsDir = Paths.get("./data/tuning-results")
+      java.nio.file.Files.createDirectories(resultsDir)
+      val resultFile =
+        resultsDir.resolve(s"claude-weights-${java.time.LocalDateTime.now.toEpochSecond(ZoneOffset.UTC)}.txt")
+      java.nio.file.Files.writeString(resultFile, s"score=$bestScore/$batterySize\n$bestWeights\n")
+      println(s"Saved to $resultFile")
 
   }

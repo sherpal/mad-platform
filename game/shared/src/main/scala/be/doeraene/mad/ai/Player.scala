@@ -90,6 +90,30 @@ object Player {
       jPaulDoeTheoryTreeExplorer(aValue)
     )
 
+  /** [[TreeExplorer]] wrapping [[ClaudeEvaluator]]. It doesn't need to depend on the current [[GameState]] (unlike
+    * jPaul's, which picks a different [[PieceEvaluator]] depending on the piece count), since the phase-scaling is
+    * done inside the evaluator itself.
+    */
+  def claudeTheoryTreeExplorer: TreeExplorer.MadTreeExplorer =
+    TreeExplorer.MadGameStateTreeExplorer(ClaudeEvaluator.evaluate)
+
+  /** Returns a minimax [[MadPlayer]] from [[ClaudeEvaluator]]: a material scale built from the (attack, defence)
+    * combat tier rather than the corvette/frigate/destroyer/cruiser naming order, a recall-aware correction for
+    * exiled-but-recallable pieces, a heavily-weighted 111 safety term, a phase-scaled 222 caution term, and a small
+    * centre-control term. See [[ClaudeEvaluator]] for the full reasoning.
+    */
+  def claudeTheoryPlayer(minimaxDepth: Int): MadPlayer =
+    gameStateDependentMinimaxMadPlayer(minimaxDepth, _ => claudeTheoryTreeExplorer)
+
+  /** Same as [[claudeTheoryPlayer]], but with an explicit [[ClaudeWeights]] instead of the hand-picked default - what
+    * [[be.doeraene.mad.ai.tuning.ClaudeWeightTuner]] uses to score candidates.
+    */
+  def claudeTheoryPlayerWithWeights(minimaxDepth: Int, weights: ClaudeWeights): MadPlayer =
+    gameStateDependentMinimaxMadPlayer(
+      minimaxDepth,
+      _ => TreeExplorer.MadGameStateTreeExplorer(ClaudeEvaluator.evaluate(weights))
+    )
+
   def minimaxMadPlayer(minimaxDepth: Int)(using
       treeExplorer: TreeExplorer[GameState, GameAction, Team]
   ): MadPlayer =
