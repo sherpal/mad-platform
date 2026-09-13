@@ -13,11 +13,11 @@ object DisplayGameState:
   private case object _6x4 extends CssClassGameSize
 
   private def fromGameType(gameType: GameBoundaries.GameType): CssClassGameSize = gameType match {
-    case GameBoundaries._6by4 => _6x4
-    case GameBoundaries._4by6 => _6x4
-    case GameBoundaries._5by5 => _5x5
+    case GameBoundaries._6by4        => _6x4
+    case GameBoundaries._4by6        => _6x4
+    case GameBoundaries._5by5        => _5x5
     case GameBoundaries.aztecDiamond => _6x4
-    case _      => throw new IllegalArgumentException(s"Unknown game type: $gameType")
+    case _                           => throw new IllegalArgumentException(s"Unknown game type: $gameType")
   }
 
   /** Component showing the board, from the perspective of the specified team. The board is displayed in such a way that
@@ -34,7 +34,7 @@ object DisplayGameState:
   ): HtmlElement =
     val images = GamePiece.pieces.map { piece =>
       piece -> img(
-        src := s"/assets/images-mad/${piece.prettyPrint.toLowerCase}.png",
+        src   := ("/" ++ RouteDefinitions.gamePieceImagePath(piece).createPath()),
         width := "64px"
       )
     }.toMap
@@ -43,8 +43,7 @@ object DisplayGameState:
       row <- 0 until boundaries.lastRow
       col <- 0 until boundaries.lastCol
       rowCol = (row, col)
-    } yield rowCol -> img(src := s"/assets/images-mad/blank.png", width := "64px"))
-      .toMap
+    } yield rowCol -> img(src := ("/" ++ RouteDefinitions.blankPiece.createPath()), width := "64px")).toMap
 
     div(
       child <-- maybeAdditionActionStream
@@ -77,41 +76,46 @@ object DisplayGameState:
     val withBorderCls = "with-border"
     val rows =
       gameState.gameBoundaries.rows.toList.zipWithIndex.map { (row, rowIndex) =>
-        tr(td(className := "row-index", (boundaries.lastRow - rowIndex).toString), symmetry(row.toList.zipWithIndex.map {
-          case (None, colIndex) => td(
-            className := withBorderCls,
-            className := "illegal-square",
-            blanks((rowIndex, colIndex)),
-            onMouseEnter.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
-            onMouseLeave.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
-            onClick.mapTo(None) --> pieceClickObserver
-          )
-          case (Some(position), colIndex) => gameState.piecesFromPosition.get(position) match {
-            case None =>
-                td(
-                  isBlackSquare(rowIndex, colIndex),
-                  className := withBorderCls,
-                  blanks((rowIndex, colIndex)),
-                  onMouseEnter.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
-                  onMouseLeave.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
-                  onClick.mapTo(None) --> pieceClickObserver
-                )
-              case Some(piece) =>
-                td(
-                  isBlackSquare(rowIndex, colIndex),
-                  className := withBorderCls,
-                  images(piece),
-                  onMouseEnter.mapTo(Some(piece)) --> hoveredPieceObserver,
-                  onMouseLeave.mapTo(None) --> hoveredPieceObserver,
-                  onClick.mapTo(Some(piece)) --> pieceClickObserver,
-                  className <-- maybeSelectedPieceSignal
-                    .map(_.contains(piece))
-                    .map(pieceIsSelected =>
-                      if pieceIsSelected then s"piece-selected-${piece.team.toString.toLowerCase}" else ""
-                    )
-                )
-          }
-        }))
+        tr(
+          td(className := "row-index", (boundaries.lastRow - rowIndex).toString),
+          symmetry(row.toList.zipWithIndex.map {
+            case (None, colIndex) =>
+              td(
+                className := withBorderCls,
+                className := "illegal-square",
+                blanks((rowIndex, colIndex)),
+                onMouseEnter.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
+                onMouseLeave.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
+                onClick.mapTo(None) --> pieceClickObserver
+              )
+            case (Some(position), colIndex) =>
+              gameState.piecesFromPosition.get(position) match {
+                case None =>
+                  td(
+                    isBlackSquare(rowIndex, colIndex),
+                    className := withBorderCls,
+                    blanks((rowIndex, colIndex)),
+                    onMouseEnter.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
+                    onMouseLeave.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
+                    onClick.mapTo(None) --> pieceClickObserver
+                  )
+                case Some(piece) =>
+                  td(
+                    isBlackSquare(rowIndex, colIndex),
+                    className := withBorderCls,
+                    images(piece),
+                    onMouseEnter.mapTo(Some(piece)) --> hoveredPieceObserver,
+                    onMouseLeave.mapTo(None) --> hoveredPieceObserver,
+                    onClick.mapTo(Some(piece)) --> pieceClickObserver,
+                    className <-- maybeSelectedPieceSignal
+                      .map(_.contains(piece))
+                      .map(pieceIsSelected =>
+                        if pieceIsSelected then s"piece-selected-${piece.team.toString.toLowerCase}" else ""
+                      )
+                  )
+              }
+          })
+        )
       }
 
     val colNames = boundaries.alphabet.map(char => th(char.toUpper.toString)).take(boundaries.lastCol).toList
