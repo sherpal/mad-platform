@@ -33,11 +33,11 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
         with:
-          source-directory: dist/
+          source-directory: frontend/dist/
           destination-github-username: 'sherpal'
           destination-repository-name: 'mad-the-game'
           user-email: antoine.doeraene@gmail.com
           commit-message: See ORIGIN_COMMIT from $GITHUB_REF
-          target-branch: master
+          target-branch: main
       - name: Test get variable exported by push-to-another-repository
         run: echo $DESTINATION_CLONED_DIRECTORY
