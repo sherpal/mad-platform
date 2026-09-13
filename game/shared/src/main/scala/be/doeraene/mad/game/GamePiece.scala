@@ -16,13 +16,20 @@ final case class GamePiece(movement: Movement, attack: Attack, defence: Defence,
 
   /** Returns the number of opponent pieces this piece cann take, given this [[GameState]] */
   def pieceTakeScore(gameState: GameState): Double =
-    GameAction.allMovements.filter(_.piece == this).count(_.doesSomeoneDie(gameState)).toDouble
+    GameAction.movementsByPiece.getOrElse(this, Nil).count(_.doesSomeoneDie(gameState)).toDouble
 
-  /** Returns the number of opponent pieces can take this piece, given this [[GameState]]. */
+  /** Returns the number of opponent pieces can take this piece, given this [[GameState]].
+    *
+    * Only scans the movements of opponent pieces actually on the board: a dead piece's `finalPosition` is always
+    * `None` (see [[GameAction.MovementAction.finalPosition]]), so it could never have matched anyway - this just
+    * skips guaranteed-empty work instead of scanning all ~128 [[GameAction.allMovements]] regardless of how many
+    * pieces remain, which used to cost the same whether 16 pieces were still alive or 3.
+    */
   def piecesTakenScore(gameState: GameState): Double = gameState.pieces.get(this) match {
     case Some(myPosition) =>
-      GameAction.allMovements
-        .filter(_.actionForTeam != team)
+      gameState.pieces.keys.iterator
+        .filter(_.team != team)
+        .flatMap(GameAction.movementsByPiece.getOrElse(_, Nil))
         .count(_.finalPosition(gameState).contains(myPosition))
         .toDouble
     case None => Double.MinValue

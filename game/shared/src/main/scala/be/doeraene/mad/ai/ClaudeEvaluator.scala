@@ -110,7 +110,7 @@ object ClaudeEvaluator:
     if !gameState.pieceIsAlive(own111) then 0.0 // would be terminal, handled upstream; defensive only
     else
       val threats   = own111.piecesTakenScore(gameState)
-      val escapes   = GameAction.allMovements.count(a => a.piece == own111 && a.isLegal(gameState)).toDouble
+      val escapes   = GameAction.movementsByPiece.getOrElse(own111, Nil).count(_.isLegal(gameState)).toDouble
       val pressure  = corvetteApproachPressure(gameState, team)
       val bodyguard = bodyguardSupport(weights, gameState, team)
       -weights.corvetteThreatWeight * threats + weights.corvetteEscapeWeight * escapes -

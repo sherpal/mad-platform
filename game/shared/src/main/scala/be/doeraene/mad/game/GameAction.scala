@@ -237,6 +237,14 @@ object GameAction:
 
   val allMovements: List[MovementAction] = oneMovements ++ twoMovements
 
+  /** [[allMovements]] grouped by piece, computed once. Several hot-path lookups (piece-specific mobility/threat
+    * counts, called from [[GamePiece.pieceTakeScore]], [[GamePiece.piecesTakenScore]] and eval heuristics) only ever
+    * care about one piece's own moves; scanning and filtering the full ~128-entry [[allMovements]] list for that on
+    * every call, at every node of a search tree, is pure waste when this index turns it into an O(1) lookup into a
+    * list of only that piece's own handful of moves.
+    */
+  val movementsByPiece: Map[GamePiece, List[MovementAction]] = allMovements.groupBy(_.piece)
+
   sealed trait PieceShiftingAction extends GameAction:
     def involvedPieces: List[GamePiece]
 

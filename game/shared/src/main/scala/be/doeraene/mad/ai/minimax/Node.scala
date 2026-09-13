@@ -24,15 +24,19 @@ trait Node[T, Action, Turn]:
   @inline final def isTerminalNode(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
     treeExplorer.isTerminalNode(t)
 
-  final def children(using treeExplorer: TreeExplorer[T, Action, Turn]): Map[Action, Node[T, Action, Turn]] =
-    actions
-      .map(action => action -> treeExplorer.actionIsLikeFunction1.asFunction1(action).apply(t))
-      .map { (action: Action, newT: T) =>
-        action -> new Node[T, Action, Turn] {
-          def t: T = newT
-        }
+  /** Returns a `List` rather than a `Map` on purpose: [[scoreForAction]]'s alpha-beta loop drains this via repeated
+    * `.head`/`.tail`, which is O(1) per step on a `List` but O(log n) per step on an immutable `Map` (`tail` has to
+    * rebuild the underlying hash trie), making a full drain O(n log n) instead of O(n) - paid at every node, every
+    * ply, of the whole search tree. Nothing here needs key lookup, only sequential draining, so `List` is strictly
+    * the right type, not just a faster one.
+    */
+  final def children(using treeExplorer: TreeExplorer[T, Action, Turn]): List[(Action, Node[T, Action, Turn])] =
+    actions.map { action =>
+      val newT = treeExplorer.actionIsLikeFunction1.asFunction1(action).apply(t)
+      action -> new Node[T, Action, Turn] {
+        def t: T = newT
       }
-      .toMap
+    }
 
   def scoreForAction(action: Action, childAfterAction: Node[T, Action, Turn], turn: Turn, maxDepth: Int)(using
       treeExplorer: TreeExplorer[T, Action, Turn]
