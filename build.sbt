@@ -1,11 +1,10 @@
 import sbt.Keys.*
-import sbtcrossproject.CrossPlugin.autoImport.crossProject
+import sbt.projectMatrix
 
 import java.nio.charset.StandardCharsets
 import scala.sys.process.Process
 
 val commonScalaVersion = "3.8.4"
-name    := "mad"
 version := "1.0.0"
 
 val usedScalacOptions = List(
@@ -20,40 +19,49 @@ val usedScalacOptions = List(
 )
 
 val commonSettings = List(
-  scalaVersion                             := commonScalaVersion,
-  libraryDependencies += "org.scalameta"  %%% "munit"      % "0.7.26" % Test,
-  libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.15.3" % Test,
-  libraryDependencies += "dev.zio"        %%% "zio-test"   % "2.0.9",
+  scalaVersion                            := commonScalaVersion,
+  libraryDependencies += "org.scalameta"  %% "munit"      % "0.7.26" % Test,
+  libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
+  libraryDependencies += "dev.zio"        %% "zio-test"   % "2.0.9",
   testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   scalacOptions ++= usedScalacOptions
 )
 
-lazy val game = crossProject(JSPlatform, JVMPlatform)
+lazy val game = projectMatrix
   .in(file("./game"))
   .settings(
     commonSettings,
     SharedDependencies.circe
   )
-  .jvmSettings(
-    libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
+  .jvmPlatform(
+    scalaVersions = Seq(commonScalaVersion),
+    settings = Seq(
+      libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0")
+    )
   )
-  .jsSettings(
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0",
-    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0",
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  .jsPlatform(
+    scalaVersions = Seq(commonScalaVersion),
+    settings = Seq(
+      libraryDependencies ++= Seq(
+        "io.github.cquiroz" %% "scala-java-time"      % "2.4.0",
+        "io.github.cquiroz" %% "scala-java-time-tzdb" % "2.4.0"
+      ),
+      scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+    )
   )
 
-lazy val `shared-logic` = crossProject(JSPlatform, JVMPlatform)
+lazy val `shared-logic` = projectMatrix
   .in(file("./shared-logic"))
   .settings(
     commonSettings,
     SharedDependencies.addDependencies()
   )
-  .jvmSettings(
-    libraryDependencies ++= List()
-  )
-  .jsSettings(
-    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  .jvmPlatform(scalaVersions = Seq(commonScalaVersion))
+  .jsPlatform(
+    scalaVersions = Seq(commonScalaVersion),
+    settings = Seq(
+      scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+    )
   )
   .dependsOn(game)
 
@@ -64,7 +72,7 @@ lazy val `shared-js` = project
     commonSettings,
     scalaVersion := commonScalaVersion
   )
-  .dependsOn(`shared-logic`.js)
+  .dependsOn(`shared-logic`.js(commonScalaVersion))
 
 lazy val frontend = project
   .in(file("./frontend"))
@@ -74,8 +82,8 @@ lazy val frontend = project
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     libraryDependencies ++= List(
-      "com.raquo"   %%% "laminar"            % "17.0.0",
-      "be.doeraene" %%% "web-components-ui5" % "1.24.0"
+      "com.raquo"   %% "laminar"            % "17.0.0",
+      "be.doeraene" %% "web-components-ui5" % "1.24.0"
     ),
     commonSettings,
     onLoad := {
@@ -108,7 +116,7 @@ lazy val `web-worker` = project
   .settings(
     scalaVersion                    := commonScalaVersion,
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies ++= List("org.scala-js" %%% "scalajs-dom" % "2.4.0"),
+    libraryDependencies ++= List("org.scala-js" %% "scalajs-dom" % "2.4.0"),
     commonSettings
   )
   .dependsOn(`shared-js`)
@@ -122,7 +130,7 @@ lazy val fastOptWorker =
 lazy val fullOptWorker =
   taskKey[Unit]("fullOptJS the web-worker project, and copy the compiled file in Vite's assets.")
 
-Global / fastOptWorker := {
+Global / fastOptWorker := Def.uncached {
   val _         = (`web-worker` / Compile / fastLinkJS).value
   val outputDir = (`web-worker` / Compile / fastLinkJSOutput).value
 
@@ -134,7 +142,7 @@ Global / fastOptWorker := {
   )
 }
 
-Global / fullOptWorker := {
+Global / fullOptWorker := Def.uncached {
   val _         = (`web-worker` / Compile / fullLinkJS).value
   val outputDir = (`web-worker` / Compile / fullLinkJSOutput).value
 
@@ -148,7 +156,7 @@ Global / fullOptWorker := {
 
 val buildFrontend = taskKey[Unit]("Build frontend")
 
-buildFrontend := {
+Global / buildFrontend := Def.uncached {
   /*
   To build the frontend, we do the following things:
   - fullLinkJS the frontend sub-module
@@ -157,21 +165,26 @@ buildFrontend := {
    */
   (Global / fullOptWorker).value
   (frontend / Compile / fullLinkJS).value
+
+  val dir = (ThisBuild / baseDirectory).value
+
+  println(s"Running npm ci in ${dir / "frontend"}")
+
   val npmCiExit =
-    Process(Utils.npm :: "ci" :: Nil, cwd = baseDirectory.value / "frontend").run().exitValue()
+    Process(Utils.npm :: "ci" :: Nil, cwd = dir / "frontend").run().exitValue()
   if (npmCiExit > 0) {
     throw new IllegalStateException(s"npm ci failed. See above for reason")
   }
 
   val buildExit = Process(
     Utils.npm :: "run" :: "build" :: Nil,
-    cwd = baseDirectory.value / "frontend"
+    cwd = dir / "frontend"
   ).run().exitValue()
   if (buildExit > 0) {
     throw new IllegalStateException(s"Building frontend failed. See above for reason")
   }
 
-  val distFolder = baseDirectory.value / "frontend" / "dist"
+  val distFolder = dir / "frontend" / "dist"
 
   IO.copyFile(distFolder / "index.html", distFolder / "404.html")
 }

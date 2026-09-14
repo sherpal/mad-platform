@@ -1,8 +1,8 @@
 package be.doeraene.mad.ai.tuning
 
+import be.doeraene.mad.ai.Player.MadPlayer
 import be.doeraene.mad.ai.benchmark.Benchmark
 import be.doeraene.mad.ai.{Player, TacticalWeights}
-import be.doeraene.mad.ai.Player.MadPlayer
 
 import scala.util.Random
 

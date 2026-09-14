@@ -1,16 +1,16 @@
 package be.doeraene
 
 import be.doeraene.cli.{AskForGameAction, GameConfig}
-import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
+import be.doeraene.mad.ai.Player.{MadPlayer, minimaxMadPlayer}
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner}
-import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
+import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
 import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Team}
 
 import java.nio.file.Paths
 import java.time.ZoneOffset
-import scala.util.Random
 import scala.jdk.CollectionConverters.*
+import scala.util.Random
 
 @main def run(args: String*): Unit =
   GameConfig.parseCLIArgs(args*) match {

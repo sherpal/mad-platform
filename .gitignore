@@ -38,3 +38,4 @@ frontend/public/web-worker/
 /prod.json
 
 /data/
+/.sbt/

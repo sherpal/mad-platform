@@ -1,7 +1,7 @@
 package be.doeraene.perf
 
-import scala.scalajs.js.JSConverters.*
 import scala.scalajs.js
+import scala.scalajs.js.JSConverters.*
 
 private class OptimizedColImpl[T](underlying: js.Array[T]) extends OptimizedCol[T] {
 
