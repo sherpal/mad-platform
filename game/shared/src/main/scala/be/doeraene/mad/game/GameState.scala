@@ -1,7 +1,7 @@
 package be.doeraene.mad.game
 
-import Positions._
-import GamePiece._
+import Positions.*
+import GamePiece.*
 
 /** Represents the board of the Mad game.
   *

@@ -1,7 +1,7 @@
 package be.doeraene.models
 
 import java.time.LocalDateTime
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import be.doeraene.mad.game.Team
 
 final case class PlayersThinkingTimeInfo(

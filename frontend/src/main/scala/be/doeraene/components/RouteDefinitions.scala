@@ -1,33 +1,28 @@
 package be.doeraene.components
 
 import be.doeraene.mad.game.GamePiece
-import urldsl.language.dummyErrorImpl.*
 import urldsl.errors.DummyError
+import urldsl.errors.DummyError.dummyError
+import urldsl.language.dummyErrorImpl.*
+import urldsl.vocabulary.{FromString, Printer}
 
 import scala.util.Try
 
+//noinspection TypeAnnotation
 object RouteDefinitions:
 
-  val base = root / "mad-the-game"
-
+  val base  = root / "mad-the-game"
   val entry = base / endOfSegments
 
-  val againstAI    = base / "against-ai"
-  val againstHuman = base / "against-human"
+  val againstAI = base / "against-ai"
   val playAIGame =
     (againstAI / "play") ? ((gameHistoryParam & teamParam).? & gameTypeParam & withInitialSpecialRuleParam)
 
-  
-  private val imagesMad = base / "assets" / "images-mad" 
-  
-  def gamePieceImagePath(piece: GamePiece) =
-    imagesMad / s"${piece.prettyPrint.toLowerCase}.png"
-    
-  def blankPiece = imagesMad / "blank.png"
+  private val imagesMad = base / "assets" / "images-mad"
 
-  implicit val UUIDFromString: urldsl.vocabulary.FromString[java.util.UUID, DummyError] =
-    (str: String) => Try(java.util.UUID.fromString(str)).toEither.swap.map(_ => DummyError.dummyError).swap
-  implicit val UUIDPrinter: urldsl.vocabulary.Printer[java.util.UUID] = _.toString
+  val gamePieceImagePath = imagesMad / segment[GamePiece]
+  val blankPiece         = imagesMad / "blank.png"
 
-  val gameId   = param[java.util.UUID]("gameId")
-  val opponent = param[String]("opponent")
+  given Printer[GamePiece] = _.prettyPrint.toLowerCase ++ ".png"
+  given FromString[GamePiece, DummyError] = (str: String) =>
+    GamePiece.pieces.find(summon[Printer[GamePiece]].print(_) == str.dropRight(".png".length)).toRight(dummyError)

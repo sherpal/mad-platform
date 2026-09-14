@@ -1,8 +1,8 @@
 package be.doeraene.utils.communication
 
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 
-import be.doeraene.mad.game._
+import be.doeraene.mad.game.*
 import be.doeraene.mad.game.Positions.Position
 import MadTranslators.given
 

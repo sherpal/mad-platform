@@ -1,9 +1,9 @@
 package be.doeraene.models
 
-import be.doeraene.mad.game._
+import be.doeraene.mad.game.*
 import be.doeraene.utils.communication.MadTranslators.given
-import io.circe.generic.semiauto._
-import io.circe._
+import io.circe.generic.semiauto.*
+import io.circe.*
 import scala.compiletime.ops.int.>
 
 final case class GameHistory(

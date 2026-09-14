@@ -1,7 +1,7 @@
 package be.doeraene.mad.game
 
 import be.doeraene.mad.game.errors.OwnLegalityException
-import be.doeraene.mad.game.errors.OwnLegalityException._
+import be.doeraene.mad.game.errors.OwnLegalityException.*
 import Positions.{Column, Direction, Position, Row}
 import be.doeraene.mad.game.GameAction.{GamePieceMoves1, GamePieceMoves2}
 

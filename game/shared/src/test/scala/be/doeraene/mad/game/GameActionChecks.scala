@@ -1,9 +1,9 @@
 package be.doeraene.mad.game
 
-import org.scalacheck._
-import org.scalacheck.Prop._
-import GameAction._
-import Positions._
+import org.scalacheck.*
+import org.scalacheck.Prop.*
+import GameAction.*
+import Positions.*
 
 import scala.reflect.ClassTag
 

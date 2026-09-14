@@ -1,6 +1,6 @@
 package be.doeraene.mad.game
 
-import GamePiece._
+import GamePiece.*
 
 /** A [[GamePiece]] is a pawn on the game. There are 16 in total (8 per team), characterised by a [[Movement]], an
   * [[Attack]] and a [[Defence]].
@@ -20,10 +20,10 @@ final case class GamePiece(movement: Movement, attack: Attack, defence: Defence,
 
   /** Returns the number of opponent pieces can take this piece, given this [[GameState]].
     *
-    * Only scans the movements of opponent pieces actually on the board: a dead piece's `finalPosition` is always
-    * `None` (see [[GameAction.MovementAction.finalPosition]]), so it could never have matched anyway - this just
-    * skips guaranteed-empty work instead of scanning all ~128 [[GameAction.allMovements]] regardless of how many
-    * pieces remain, which used to cost the same whether 16 pieces were still alive or 3.
+    * Only scans the movements of opponent pieces actually on the board: a dead piece's `finalPosition` is always `None`
+    * (see [[GameAction.MovementAction.finalPosition]]), so it could never have matched anyway - this just skips
+    * guaranteed-empty work instead of scanning all ~128 [[GameAction.allMovements]] regardless of how many pieces
+    * remain, which used to cost the same whether 16 pieces were still alive or 3.
     */
   def piecesTakenScore(gameState: GameState): Double = gameState.pieces.get(this) match {
     case Some(myPosition) =>
@@ -88,25 +88,24 @@ object GamePiece:
   type PieceStat = 1 | 2
 
   opaque type Movement <: Int = PieceStat
-  @inline def movementValue(movement: Movement): Int = movement
-  val movement1: Movement                            = 1
-  val movement2: Movement                            = 2
+  inline def movementValue(movement: Movement): Int = movement
+  val movement1: Movement                           = 1
+  val movement2: Movement                           = 2
   object Movement:
     extension (movement: Movement) def turnToTravel(distance: Double): Double = distance / movement.toDouble
 
   opaque type Attack <: Int = PieceStat
-  @inline private def attackValue(attack: Attack): Int = attack
-  val attack1: Attack                          = 1
+  inline private def attackValue(attack: Attack): Int = attack
+  val attack1: Attack                                 = 1
   object Attack:
     extension (attack: Attack)
       def >=(defence: Defence): Boolean = attack >= defence
       def >(defence: Defence): Boolean  = attack > defence
 
-    implicit object AttackOrdering extends Ordering[Attack]:
-      def compare(x: Attack, y: Attack): Int = attackValue(x) compare attackValue(y)
+    given Ordering[Attack] = (x: Attack, y: Attack) => attackValue(x) compare attackValue(y)
 
   opaque type Defence <: Int = PieceStat
-  @inline def defenceValue(defence: Defence): Int = defence
+  inline def defenceValue(defence: Defence): Int = defence
 
   def value(movement: Movement, attack: Attack, defence: Defence): (Int, Int, Int) = (movement, attack, defence)
 

@@ -1,6 +1,6 @@
 package be.doeraene.components.router
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
 import org.scalajs.dom
 import org.scalajs.dom.Element

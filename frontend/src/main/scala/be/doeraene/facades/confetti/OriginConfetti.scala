@@ -19,42 +19,34 @@ trait OriginConfetti extends js.Object {
     */
   var y: js.UndefOr[Double] = js.native
 }
+//noinspection MutatorLikeMethodIsParameterless
 object OriginConfetti {
 
-  @scala.inline
-  def apply(): OriginConfetti = {
+  inline def apply(): OriginConfetti = {
     val __obj = js.Dynamic.literal()
     __obj.asInstanceOf[OriginConfetti]
   }
 
-  @scala.inline
-  implicit class OriginOps[Self <: OriginConfetti](val x: Self) extends AnyVal {
+  extension [Self <: OriginConfetti](x: Self) {
 
-    @scala.inline
-    def duplicate: Self = js.Dynamic.global.Object.assign(js.Dynamic.literal(), x).asInstanceOf[Self]
+    inline def duplicate: Self = js.Dynamic.global.Object.assign(js.Dynamic.literal(), x).asInstanceOf[Self]
 
-    @scala.inline
-    def combineWith[Other <: js.Any](other: Other): Self & Other =
+    inline def combineWith[Other <: js.Any](other: Other): Self & Other =
       js.Dynamic.global.Object
         .assign(js.Dynamic.literal(), x, other.asInstanceOf[js.Any])
         .asInstanceOf[Self & Other]
 
-    @scala.inline
-    def set(key: String, value: js.Any): Self = {
+    inline def set(key: String, value: js.Any): Self = {
       x.asInstanceOf[js.Dynamic].updateDynamic(key)(value)
       x
     }
 
-    @scala.inline
-    def setX(value: Double): Self = this.set("x", value.asInstanceOf[js.Any])
+    inline def setX(value: Double): Self = x.set("x", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteX: Self = this.set("x", js.undefined)
+    inline def deleteX: Self = x.set("x", js.undefined)
 
-    @scala.inline
-    def setY(value: Double): Self = this.set("y", value.asInstanceOf[js.Any])
+    inline def setY(value: Double): Self = x.set("y", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteY: Self = this.set("y", js.undefined)
+    inline def deleteY: Self = x.set("y", js.undefined)
   }
 }

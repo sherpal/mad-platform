@@ -1,6 +1,6 @@
 package be.doeraene
 
-import urldsl.language.dummyErrorImpl._
+import urldsl.language.dummyErrorImpl.*
 import be.doeraene.models.GameHistory
 
 package object globals {

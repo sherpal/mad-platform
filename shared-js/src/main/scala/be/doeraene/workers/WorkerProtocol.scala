@@ -1,10 +1,10 @@
 package be.doeraene.workers
 
-import be.doeraene.mad.game._
+import be.doeraene.mad.game.*
 import be.doeraene.utils.communication.MadTranslators.given
 import io.circe.{Decoder, Encoder}
-import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
 import scala.reflect.ClassTag
 
 sealed trait WorkerProtocol:
@@ -30,7 +30,7 @@ object WorkerProtocol:
   ) extends WorkerProtocol:
     type Response = Nothing
 
-  implicit val workerProtocolEncoder: Encoder[WorkerProtocol] = Encoder.instance {
+  given Encoder[WorkerProtocol] = Encoder.instance {
     case element: CurrentGameStateWithSelectedAction => element.asJson
     case element: GameActionWithScore                => element.asJson
   }
@@ -38,7 +38,7 @@ object WorkerProtocol:
   extension [T <: WorkerProtocol](decoder: Decoder[T])
     def widen: Decoder[WorkerProtocol] = decoder.map(x => x: WorkerProtocol)
 
-  implicit val workerProtocolDecoder: Decoder[WorkerProtocol] =
+  given Decoder[WorkerProtocol] =
     List[Decoder[WorkerProtocol]](
       Decoder[CurrentGameStateWithSelectedAction].widen,
       Decoder[GameActionWithScore].widen

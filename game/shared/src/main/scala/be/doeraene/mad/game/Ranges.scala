@@ -8,7 +8,7 @@ object Ranges:
 
   opaque type <[From <: Int, To <: Int] = Int
 
-  object `<` :
+  object `<`:
 
     def apply[From <: Int: ValueOf, To <: Int: ValueOf](n: Int): Option[From < To] =
       Option.when(valueOf[From] <= n && n < valueOf[To])(n.asInstanceOf[From < To])
@@ -30,10 +30,10 @@ object Ranges:
 
       def minValue: From = valueOf[From]
 
-    implicit def fromInt[N <: Int, From <: Int, To <: Int](
-        n: N
-    )(using true =:= (N << To), true =:= (N >>= From)): From < To =
-      n
+    given [N <: Int, From <: Int, To <: Int](using
+        true =:= (N << To),
+        true =:= (N >>= From)
+    ): Conversion[N, From < To] = identity
 
   end <
 

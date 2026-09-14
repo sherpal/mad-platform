@@ -2,7 +2,7 @@ package be.doeraene.mad.ai
 
 import be.doeraene.cli.CustomGameStateParser.parse
 import be.doeraene.mad.game.GameAction.Permutation
-import be.doeraene.mad.game.GamePiece._
+import be.doeraene.mad.game.GamePiece.*
 
 final class PlayerSpecs extends munit.FunSuite:
 

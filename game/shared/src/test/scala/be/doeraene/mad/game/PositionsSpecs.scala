@@ -1,6 +1,6 @@
 package be.doeraene.mad.game
 
-import Positions._
+import Positions.*
 
 class PositionsSpecs extends munit.FunSuite:
   

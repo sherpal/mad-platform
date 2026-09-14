@@ -6,14 +6,14 @@ import org.scalajs.dom.XMLHttpRequest
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import io.circe.parser.decode
-import io.circe.syntax._
+import io.circe.syntax.*
 import org.scalajs.dom
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import dom.FormData
 
-import urldsl.language._
+import urldsl.language.*
 import scala.scalajs.js
 
 object makeCall:

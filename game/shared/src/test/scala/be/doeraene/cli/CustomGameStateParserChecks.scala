@@ -1,12 +1,12 @@
 package be.doeraene.cli
 
-import org.scalacheck._
-import org.scalacheck.Prop._
+import org.scalacheck.*
+import org.scalacheck.Prop.*
 
 object CustomGameStateParserChecks extends Properties("Game State Parser") {
 
   import be.doeraene.mad.game.GameActionChecks.{fiveByFiveGameStateGen, sixByFourGameStateGen}
-  import CustomGameStateParser._
+  import CustomGameStateParser.*
 
   property("Round trip of game state parser works") = forAll(sixByFourGameStateGen) { gameState =>
     val generated = generate(gameState)

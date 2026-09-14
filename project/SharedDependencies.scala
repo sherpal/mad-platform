@@ -1,6 +1,5 @@
-import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
+import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport.*
 import sbt.Def.settings
-import sbt._
 import sbt.Keys.libraryDependencies
 
 object SharedDependencies {

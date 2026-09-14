@@ -1,6 +1,6 @@
 package be.doeraene.components.router
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import urldsl.language.{PathSegment, PathSegmentWithQueryParams, QueryParameters}
 import be.doeraene.webcomponents.ui5.{Link => UI5Link, *}

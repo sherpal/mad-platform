@@ -1,12 +1,12 @@
 package be.doeraene.communication
 
-import be.doeraene.workers._
+import be.doeraene.workers.*
 import org.scalajs.dom
 import org.scalajs.dom.Worker
 import scala.concurrent.{Future, Promise}
 import be.doeraene.globals.webWorkerPath
 
-import io.circe.syntax._
+import io.circe.syntax.*
 import io.circe.parser.decode
 
 import scala.reflect.ClassTag

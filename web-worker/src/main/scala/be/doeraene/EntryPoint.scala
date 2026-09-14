@@ -5,7 +5,7 @@ import org.scalajs.dom.MessageEvent
 
 import be.doeraene.workers.WorkerProtocol
 import io.circe.parser.decode
-import io.circe.syntax._
+import io.circe.syntax.*
 
 object EntryPoint:
 

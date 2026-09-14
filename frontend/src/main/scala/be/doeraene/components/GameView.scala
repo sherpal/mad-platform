@@ -8,7 +8,6 @@ import org.scalajs.dom
 import scala.scalajs.js.timers.setInterval
 
 import be.doeraene.components.*
-import be.doeraene.communication.ProgramsApi.*
 import be.doeraene.communication.WorkerAPI.*
 import be.doeraene.models.PlayerName
 import be.doeraene.models.{GameHistory => GameHistoryModel}

@@ -1,14 +1,14 @@
 package be.doeraene.components
 
-import be.doeraene.mad.game._
-import com.raquo.laminar.api.L._
+import be.doeraene.mad.game.*
+import com.raquo.laminar.api.L.*
 import be.doeraene.facades.confetti.confetti
 import be.doeraene.frontendutils.PrimaryButton
 import be.doeraene.webcomponents.ui5.*
 import org.scalajs.dom
 
-import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
 import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.utils.communication.JsonTranslator
 
@@ -19,7 +19,7 @@ object GameEndedDisplay:
       initialGameState: GameState,
       allActionsSignal: Signal[List[GameAction]],
       isAgainstAI: Boolean
-  ) = div(
+  ): HtmlElement = div(
     child <-- gameStateEvents
       .withCurrentValueOf(allActionsSignal)
       .filter((gs, _) => gs.ended)

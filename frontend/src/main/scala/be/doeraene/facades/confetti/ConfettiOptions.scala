@@ -80,110 +80,80 @@ trait ConfettiOptions extends js.Object {
     */
   var zIndex: js.UndefOr[Double] = js.native
 }
+//noinspection MutatorLikeMethodIsParameterless
 object ConfettiOptions {
 
-  @scala.inline
-  def apply(): ConfettiOptions = {
+  inline def apply(): ConfettiOptions = {
     val __obj = js.Dynamic.literal()
     __obj.asInstanceOf[ConfettiOptions]
   }
 
   // noinspection MutatorLikeMethodIsParameterless
-  @scala.inline
-  implicit class OptionsOps[Self <: ConfettiOptions](val x: Self) extends AnyVal {
+  extension [Self <: ConfettiOptions](x: Self) {
 
-    @scala.inline
-    def duplicate: Self = js.Dynamic.global.Object.assign(js.Dynamic.literal(), x).asInstanceOf[Self]
+    inline def duplicate: Self = js.Dynamic.global.Object.assign(js.Dynamic.literal(), x).asInstanceOf[Self]
 
-    @scala.inline
-    def combineWith[Other <: js.Any](other: Other): Self & Other =
+    inline def combineWith[Other <: js.Any](other: Other): Self & Other =
       js.Dynamic.global.Object
         .assign(js.Dynamic.literal(), x, other.asInstanceOf[js.Any])
         .asInstanceOf[Self & Other]
 
-    @scala.inline
-    def set(key: String, value: js.Any): Self = {
+    inline def set(key: String, value: js.Any): Self = {
       x.asInstanceOf[js.Dynamic].updateDynamic(key)(value)
       x
     }
 
-    @scala.inline
-    def setAngle(value: Double): Self = this.set("angle", value.asInstanceOf[js.Any])
+    inline def setAngle(value: Double): Self = x.set("angle", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteAngle: Self = this.set("angle", js.undefined)
+    inline def deleteAngle: Self = x.set("angle", js.undefined)
 
-    @scala.inline
-    def setColorsVarargs(value: String*): Self = this.set("colors", js.Array(value*))
+    inline def setColorsVarargs(value: String*): Self = x.set("colors", js.Array(value*))
 
-    @scala.inline
-    def setColors(value: js.Array[String]): Self = this.set("colors", value.asInstanceOf[js.Any])
+    inline def setColors(value: js.Array[String]): Self = x.set("colors", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteColors: Self = this.set("colors", js.undefined)
+    inline def deleteColors: Self = x.set("colors", js.undefined)
 
-    @scala.inline
-    def setDecay(value: Double): Self = this.set("decay", value.asInstanceOf[js.Any])
+    inline def setDecay(value: Double): Self = x.set("decay", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteDecay: Self = this.set("decay", js.undefined)
+    inline def deleteDecay: Self = x.set("decay", js.undefined)
 
-    @scala.inline
-    def setDisableForReducedMotion(value: Boolean): Self =
-      this.set("disableForReducedMotion", value.asInstanceOf[js.Any])
+    inline def setDisableForReducedMotion(value: Boolean): Self =
+      x.set("disableForReducedMotion", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteDisableForReducedMotion: Self = this.set("disableForReducedMotion", js.undefined)
+    inline def deleteDisableForReducedMotion: Self = x.set("disableForReducedMotion", js.undefined)
 
-    @scala.inline
-    def setGravity(value: Double): Self = this.set("gravity", value.asInstanceOf[js.Any])
+    inline def setGravity(value: Double): Self = x.set("gravity", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteGravity: Self = this.set("gravity", js.undefined)
+    inline def deleteGravity: Self = x.set("gravity", js.undefined)
 
-    @scala.inline
-    def setOrigin(value: OriginConfetti): Self = this.set("origin", value.asInstanceOf[js.Any])
+    inline def setOrigin(value: OriginConfetti): Self = x.set("origin", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteOrigin: Self = this.set("origin", js.undefined)
+    inline def deleteOrigin: Self = x.set("origin", js.undefined)
 
-    @scala.inline
-    def setParticleCount(value: Double): Self = this.set("particleCount", value.asInstanceOf[js.Any])
+    inline def setParticleCount(value: Double): Self = x.set("particleCount", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteParticleCount: Self = this.set("particleCount", js.undefined)
+    inline def deleteParticleCount: Self = x.set("particleCount", js.undefined)
 
-    @scala.inline
-    def setScalar(value: Double): Self = this.set("scalar", value.asInstanceOf[js.Any])
+    inline def setScalar(value: Double): Self = x.set("scalar", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteScalar: Self = this.set("scalar", js.undefined)
+    inline def deleteScalar: Self = x.set("scalar", js.undefined)
 
-    @scala.inline
-    def deleteShapes: Self = this.set("shapes", js.undefined)
+    inline def deleteShapes: Self = x.set("shapes", js.undefined)
 
-    @scala.inline
-    def setSpread(value: Double): Self = this.set("spread", value.asInstanceOf[js.Any])
+    inline def setSpread(value: Double): Self = x.set("spread", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteSpread: Self = this.set("spread", js.undefined)
+    inline def deleteSpread: Self = x.set("spread", js.undefined)
 
-    @scala.inline
-    def setStartVelocity(value: Double): Self = this.set("startVelocity", value.asInstanceOf[js.Any])
+    inline def setStartVelocity(value: Double): Self = x.set("startVelocity", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteStartVelocity: Self = this.set("startVelocity", js.undefined)
+    inline def deleteStartVelocity: Self = x.set("startVelocity", js.undefined)
 
-    @scala.inline
-    def setTicks(value: Double): Self = this.set("ticks", value.asInstanceOf[js.Any])
+    inline def setTicks(value: Double): Self = x.set("ticks", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteTicks: Self = this.set("ticks", js.undefined)
+    inline def deleteTicks: Self = x.set("ticks", js.undefined)
 
-    @scala.inline
-    def setZIndex(value: Double): Self = this.set("zIndex", value.asInstanceOf[js.Any])
+    inline def setZIndex(value: Double): Self = x.set("zIndex", value.asInstanceOf[js.Any])
 
-    @scala.inline
-    def deleteZIndex: Self = this.set("zIndex", js.undefined)
+    inline def deleteZIndex: Self = x.set("zIndex", js.undefined)
   }
 }

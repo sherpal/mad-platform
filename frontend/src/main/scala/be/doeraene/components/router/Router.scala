@@ -1,10 +1,10 @@
 package be.doeraene.components.router
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.scalajs.dom.PopStateEvent
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.scalajs.js.timers.setTimeout
 
 final class Router private () {

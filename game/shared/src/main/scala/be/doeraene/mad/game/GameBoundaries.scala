@@ -1,6 +1,6 @@
 package be.doeraene.mad.game
 
-import Ranges._
+import Ranges.*
 import scala.util.Try
 import Positions.Direction
 import scala.compiletime.ops.int.{< => <<}
@@ -99,7 +99,7 @@ sealed trait GameBoundaries {
 
 object GameBoundaries:
 
-  import GamePiece._
+  import GamePiece.*
 
   sealed trait RectangularGameBoundaries(numRows: Int, numCols: Int) extends GameBoundaries {
     final def lastRow: Int = numRows

@@ -13,7 +13,6 @@ import be.doeraene.models.GameHistory
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import be.doeraene.communication.ProgramsApi.me
 import be.doeraene.components
 import be.doeraene.webcomponents.ui5.{Link => _, *}
 import be.doeraene.webcomponents.ui5.configkeys.IconName

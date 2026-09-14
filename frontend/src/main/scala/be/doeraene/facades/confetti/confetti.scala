@@ -2,7 +2,7 @@ package be.doeraene.facades.confetti
 
 import org.scalajs.dom
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 object confetti {
 

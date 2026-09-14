@@ -1,13 +1,13 @@
 package be.doeraene.frontendutils
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import be.doeraene.facades.rawdom.Audio
 import org.scalajs.dom.Event
 import org.scalajs.dom
 import scala.scalajs.js
-import scala.scalajs.js.timers._
+import scala.scalajs.js.timers.*
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 object notification:
 

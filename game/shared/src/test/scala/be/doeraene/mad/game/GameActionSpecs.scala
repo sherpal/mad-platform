@@ -1,8 +1,8 @@
 package be.doeraene.mad.game
 
-import Positions._
-import GameAction._
-import GamePiece._
+import Positions.*
+import GameAction.*
+import GamePiece.*
 import errors.OwnLegalityException
 
 final class GameActionSpecs extends munit.FunSuite:

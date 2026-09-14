@@ -1,12 +1,12 @@
 package be.doeraene.mad.ai
 
-import org.scalacheck._
-import org.scalacheck.Prop._
+import org.scalacheck.*
+import org.scalacheck.Prop.*
 
-import be.doeraene.mad.game._
+import be.doeraene.mad.game.*
 import be.doeraene.mad.game.GameActionChecks.sixByFourGameStateGen
-import be.doeraene.mad.ai.Player._
-import be.doeraene.mad.ai.minimax._
+import be.doeraene.mad.ai.Player.*
+import be.doeraene.mad.ai.minimax.*
 
 object PlayerChecks extends Properties("Player Properties"):
 

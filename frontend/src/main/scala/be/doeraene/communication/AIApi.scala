@@ -1,6 +1,6 @@
 package be.doeraene.communication
 
-import be.doeraene.mad.game._
+import be.doeraene.mad.game.*
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -10,7 +10,7 @@ import scala.scalajs.js
 import scala.util.Random
 
 import be.doeraene.utils.communication.MadTranslators.given
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import be.doeraene.communication.WorkerAPI.makeWorkerCompute
 import be.doeraene.workers.WorkerProtocol.{CurrentGameStateWithSelectedAction, GameActionWithScore}
 import scala.concurrent.ExecutionContext

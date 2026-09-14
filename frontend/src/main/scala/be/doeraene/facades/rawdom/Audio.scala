@@ -1,7 +1,7 @@
 package be.doeraene.facades.rawdom
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation._
+import scala.scalajs.js.annotation.*
 
 @js.native
 @JSGlobal

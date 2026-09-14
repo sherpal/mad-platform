@@ -1,8 +1,8 @@
 package be.doeraene.mad.game
 
-import scala.compiletime.ops.int._
+import scala.compiletime.ops.int.*
 import scala.util.Try
-import GamePiece._
+import GamePiece.*
 
 object Positions {
 

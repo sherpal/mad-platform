@@ -1,8 +1,8 @@
 package be.doeraene.components
 
-import com.raquo.laminar.api.L._
-import be.doeraene.mad.game._
-import be.doeraene.mad.game.Positions._
+import com.raquo.laminar.api.L.*
+import be.doeraene.mad.game.*
+import be.doeraene.mad.game.Positions.*
 
 object DisplayGameState:
 
@@ -34,7 +34,7 @@ object DisplayGameState:
   ): HtmlElement =
     val images = GamePiece.pieces.map { piece =>
       piece -> img(
-        src   := ("/" ++ RouteDefinitions.gamePieceImagePath(piece).createPath()),
+        src   := ("/" ++ RouteDefinitions.gamePieceImagePath.createPath(piece)),
         width := "64px"
       )
     }.toMap

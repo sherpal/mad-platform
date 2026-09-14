@@ -14,7 +14,6 @@ trait WindowConfetti extends js.Object {
 
 object WindowConfetti {
 
-  implicit def windowConfetti(window: dom.Window): WindowConfetti =
-    window.asInstanceOf[WindowConfetti]
+  given Conversion[dom.Window, WindowConfetti] = _.asInstanceOf[WindowConfetti]
 
 }

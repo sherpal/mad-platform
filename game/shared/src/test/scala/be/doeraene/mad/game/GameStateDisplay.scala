@@ -6,7 +6,7 @@ import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.time.{LocalDateTime, ZoneOffset}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class GameStateDisplay extends munit.FunSuite:
   test("showInitialGameState") {
