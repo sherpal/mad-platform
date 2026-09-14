@@ -170,4 +170,8 @@ buildFrontend := {
   if (buildExit > 0) {
     throw new IllegalStateException(s"Building frontend failed. See above for reason")
   }
+
+  val distFolder = baseDirectory.value / "frontend" / "dist"
+
+  IO.copyFile(distFolder / "index.html", distFolder / "404.html")
 }
