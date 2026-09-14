@@ -3,8 +3,8 @@ package be.doeraene
 import be.doeraene.cli.{AskForGameAction, GameConfig}
 import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
-import be.doeraene.mad.ai.tuning.ClaudeWeightTuner
-import be.doeraene.mad.ai.{tournament, Player}
+import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner}
+import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
 import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Team}
 
 import java.nio.file.Paths
@@ -73,6 +73,60 @@ import scala.jdk.CollectionConverters.*
         case Some(team) => s"Winner is $team"
         case None       => "It's a tie!"
       })
+
+    case GameConfig.MadBenchmark(minimaxDepth, config1, config2, openings, seed, skip) =>
+      val games = benchmark.Benchmark.battery(openings, seed, skip)
+      println(s"Benchmark at depth $minimaxDepth: $config1 vs $config2 over ${games.size} games")
+
+      val (report, time) = Player.timeIt(
+        benchmark.Benchmark.run(
+          config1.player(minimaxDepth),
+          config2.player(minimaxDepth),
+          games,
+          (done, total) => if done % 10 == 0 || done == total then println(s"  $done/$total games played")
+        )
+      )
+
+      println(report.pretty(config1.toString, config2.toString))
+      println(s"(took ${time.toSeconds}s)")
+
+    case GameConfig.TuneTactical(iterations, minimaxDepth, openings, seed, opponentConfig) =>
+      val training   = benchmark.Benchmark.battery(openings, seed)
+      val validation = benchmark.Benchmark.battery(openings, seed, skip = openings)
+      val opponent   = opponentConfig.player(minimaxDepth)
+
+      println(
+        s"Tuning TacticalWeights: $iterations rounds, depth $minimaxDepth, vs $opponentConfig, " +
+          s"${training.size} training games (${validation.size} held out for validation)"
+      )
+
+      val (best, bestScore) = TacticalWeightTuner.hillClimb(iterations, minimaxDepth, opponent, training) { step =>
+        val mark = if step.accepted then "accepted" else "rejected"
+        println(
+          f"[${step.iteration}%3d/$iterations] $mark%-8s ${step.fieldsTried.mkString(", ")}%-45s " +
+            f"tried=${step.triedScore}%.1f  best=${step.currentBestScore}%.1f/${training.size}%d"
+        )
+      }
+
+      val defaultTraining = TacticalWeightTuner.score(TacticalWeights.default, minimaxDepth, opponent, training)
+      val defaultHeldOut  = TacticalWeightTuner.score(TacticalWeights.default, minimaxDepth, opponent, validation)
+      val tunedHeldOut    = TacticalWeightTuner.score(best, minimaxDepth, opponent, validation)
+
+      println("=" * 70)
+      println(f"training  : default $defaultTraining%.1f -> tuned $bestScore%.1f  / ${training.size}%d")
+      println(f"held out  : default $defaultHeldOut%.1f -> tuned $tunedHeldOut%.1f  / ${validation.size}%d")
+      println(s"Best weights: $best")
+
+      val resultsDir = Paths.get("./data/tuning-results")
+      java.nio.file.Files.createDirectories(resultsDir)
+      val resultFile =
+        resultsDir.resolve(s"tactical-weights-${java.time.LocalDateTime.now.toEpochSecond(ZoneOffset.UTC)}.txt")
+      java.nio.file.Files.writeString(
+        resultFile,
+        s"training=$bestScore/${training.size} (default $defaultTraining)\n" +
+          s"heldOut=$tunedHeldOut/${validation.size} (default $defaultHeldOut)\n$best\n"
+      )
+      println(s"Saved to $resultFile")
 
     case GameConfig.TuneClaude(iterations, minimaxDepth) =>
       val batterySize = ClaudeWeightTuner.defaultBattery.size

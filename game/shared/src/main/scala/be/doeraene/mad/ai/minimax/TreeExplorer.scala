@@ -66,12 +66,22 @@ object TreeExplorer:
     def score(t: GameState, turn: Team): Double = evaluator(t, turn)
     def exactScore(t: GameState, turn: Team): Double =
       if t.ended then
-        val sign = if t.maybeWinner.contains(turn) then +1 else -1
-        infinity * sign
+        t.maybeWinner match
+          case Some(winner) => if winner == turn then infinity else -infinity
+          /* A game that ended without a winner is the 30-turns-without-an-exile tie-break, and it is worth exactly
+           * neither a win nor a loss. Scoring it `-infinity` (which is what `maybeWinner.contains(turn)` used to
+           * yield here, for *both* teams at once) told whoever asked that a drawn position was a lost one. */
+          case None => 0.0
       else queenVSQueenSituation(t, turn)
 
-    def turnOf(t: GameState): Team            = t.turnOfTeam
-    def isTerminalNode(t: GameState): Boolean = t.maybeWinner.isDefined
+    def turnOf(t: GameState): Team = t.turnOfTeam
+
+    /** A node the search must not look past. That is [[GameState.ended]], not just "a corvette has been exiled":
+      * the game also stops dead after 30 turns without an exile, and a search that ignores that keeps counting a
+      * material lead several plies into positions the game will never reach - so the side that is ahead never sees
+      * the draw coming and drifts into it, which is precisely the position it should be breaking open.
+      */
+    def isTerminalNode(t: GameState): Boolean = t.ended
     def actionIsLikeFunction1: Function1Like[GameAction, GameState] =
       summon[Function1Like[GameAction, GameState]]
 

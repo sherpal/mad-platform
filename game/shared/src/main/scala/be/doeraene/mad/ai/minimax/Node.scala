@@ -31,10 +31,24 @@ trait Node[T, Action, Turn]:
     * the right type, not just a faster one.
     */
   final def children(using treeExplorer: TreeExplorer[T, Action, Turn]): List[(Action, Node[T, Action, Turn])] =
-    actions.map { action =>
-      val newT = treeExplorer.actionIsLikeFunction1.asFunction1(action).apply(t)
+    val parent = t
+
+    /* Both of the following serve the alpha-beta loop in `scoreForAction`, which drains this list left to right and
+     * abandons the rest at the first cutoff.
+     *
+     * Ordering: a cutoff happens when a move turns out to be good enough to refute the whole branch, so trying the
+     * moves most likely to be that one first is what makes the pruning actually prune. Captures are the obvious
+     * candidates here, and `actionBonus` already knows which those are. A partition rather than a sort: it is one
+     * pass, it is stable, and every capture is as good a candidate as any other, so there is nothing to rank.
+     *
+     * Laziness: building a child's `GameState` means rebuilding a piece map, and the whole point of a cutoff is that
+     * the remaining children are never looked at. Constructing their states eagerly paid that cost for every single
+     * one of them, cutoff or not. */
+    val (capturing, quiet) = actions.partition(treeExplorer.actionBonus(_, parent) > 0.0)
+
+    (capturing ::: quiet).map { action =>
       action -> new Node[T, Action, Turn] {
-        def t: T = newT
+        lazy val t: T = treeExplorer.actionIsLikeFunction1.asFunction1(action).apply(parent)
       }
     }
 

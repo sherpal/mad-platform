@@ -15,7 +15,7 @@ def handleCurrentGSWithAction(
     val node = Node.MadGameStateNode(state)
     given TreeExplorer[GameState, GameAction, Team] =
       // Player.jPaulDoeTheoryTreeExplorer(aValue)(state)
-      Player.claudeTheoryTreeExplorer
+      Player.tacticalTreeExplorer
     node.scoreForAction(action, Node.MadGameStateNode(action(state)), state.turnOfTeam, turnAhead)
   }
 

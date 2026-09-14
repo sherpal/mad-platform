@@ -1,6 +1,6 @@
 package be.doeraene.cli
 
-import be.doeraene.mad.ai.Player
+import be.doeraene.mad.ai.{Player, TacticalWeights}
 import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
 import be.doeraene.mad.game.{GameState, Team}
 import io.circe.Codec
@@ -27,6 +27,32 @@ object GameConfig:
     */
   case class MadMatch(minimaxDepth: Int, config1: AIConfig, config2: AIConfig) extends GameConfig
 
+  /** @param openings
+    *   how many of the 81 distinct positioning-turn openings to play (each is played with both colour assignments,
+    *   so the number of games is twice this)
+    */
+  case class MadBenchmark(
+      minimaxDepth: Int,
+      config1: AIConfig,
+      config2: AIConfig,
+      openings: Int,
+      seed: Long,
+      skip: Int
+  ) extends GameConfig
+
+  /** @param iterations
+    *   number of hill-climbing rounds to run
+    * @param openings
+    *   size of the training slice; the disjoint slice starting at `openings` is left for validation
+    */
+  case class TuneTactical(
+      iterations: Int,
+      minimaxDepth: Int,
+      openings: Int,
+      seed: Long,
+      opponent: AIConfig
+  ) extends GameConfig
+
   /** @param iterations
     *   number of hill-climbing rounds to run
     * @param minimaxDepth
@@ -45,6 +71,16 @@ object GameConfig:
     }
     case class ClaudeTheory() extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.claudeTheoryPlayer(minimaxDepth)
+    }
+    /** @param weights
+      *   sparse overrides on top of [[be.doeraene.mad.ai.TacticalWeights.default]], by field name, so a single term
+      *   can be probed from the command line without a recompile
+      */
+    case class Tactical(weights: Option[Map[String, Double]] = None) extends AIConfig {
+      def player(minimaxDepth: Int): MadPlayer = Player.tacticalPlayerWithWeights(
+        minimaxDepth,
+        TacticalWeights.withOverrides(TacticalWeights.default, weights.getOrElse(Map.empty))
+      )
     }
     case class Random() extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.randomMadPlayer
@@ -70,6 +106,28 @@ object GameConfig:
     val player2      = io.circe.parser.decode[AIConfig](args(2)).toTry.get
 
     MadMatch(minimaxDepth, config1 = player1, config2 = player2)
+  }
+
+  private def madBenchmarkConfig(args: Vector[String]): GameConfig = {
+    if args.length < 3 then {
+      println("""
+          |Usage: ai-benchmark <minimax-turn-depth> <json-for-first-config> <json-for-second-config> [openings] [seed]
+          |Plays the first config against the second over a battery of distinct positioning-turn openings, each
+          |played with both colour assignments, and reports the first config's aggregate score.
+          |openings: how many of the 81 openings to use (default 20, so 40 games)
+          |Example: run ai-benchmark 3 '{"Tactical":{}}' '{"JPaulTheory":{"aValue":0.05}}' 20
+          |""".stripMargin)
+      throw IllegalArgumentException("ai-benchmark requires at least 3 arguments")
+    }
+
+    MadBenchmark(
+      minimaxDepth = args(0).toInt,
+      config1 = io.circe.parser.decode[AIConfig](args(1)).toTry.get,
+      config2 = io.circe.parser.decode[AIConfig](args(2)).toTry.get,
+      openings = Try(args(3).toInt).getOrElse(20),
+      seed = Try(args(4).toLong).getOrElse(42L),
+      skip = Try(args(5).toInt).getOrElse(0)
+    )
   }
 
   private def madTournamentConfig(args: Vector[String]): GameConfig = {
@@ -107,6 +165,26 @@ object GameConfig:
     if args.length < 2 then throw IllegalArgumentException(s"tune-claude requires 2 arguments")
 
     TuneClaude(iterations = args(0).toInt, minimaxDepth = args(1).toInt)
+  }
+
+  private def tuneTacticalConfig(args: Vector[String]): GameConfig = {
+    if args.length < 2 then {
+      println("""
+          |Usage: tune-tactical <iterations> <minimax-depth> [openings] [seed] [opponent-json]
+          |Hill-climbs TacticalWeights against a battery of openings, and reports the best weights found.
+          |openings: training-slice size (default 30, ie. 60 games per candidate)
+          |Example: run tune-tactical 40 2 30
+          |""".stripMargin)
+      throw IllegalArgumentException("tune-tactical requires at least 2 arguments")
+    }
+
+    TuneTactical(
+      iterations = args(0).toInt,
+      minimaxDepth = args(1).toInt,
+      openings = Try(args(2).toInt).getOrElse(30),
+      seed = Try(args(3).toLong).getOrElse(42L),
+      opponent = Try(args(4)).toOption.fold(AIConfig.JPaulTheory(0.05))(io.circe.parser.decode[AIConfig](_).toTry.get)
+    )
   }
 
   private def bestActionConfig(args: Vector[String]): GameConfig = {
@@ -183,6 +261,8 @@ object GameConfig:
         case "best-action" => bestActionConfig(args.tail.toVector)
         case "tournament"  => madTournamentConfig(args.tail.toVector)
         case "ai-match"    => madMatchConfig(args.tail.toVector)
+        case "ai-benchmark" => madBenchmarkConfig(args.tail.toVector)
         case "tune-claude" => tuneClaudeConfig(args.tail.toVector)
+        case "tune-tactical" => tuneTacticalConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

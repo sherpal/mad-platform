@@ -114,6 +114,29 @@ object Player {
       _ => TreeExplorer.MadGameStateTreeExplorer(ClaudeEvaluator.evaluate(weights))
     )
 
+  /** Returns a minimax [[MadPlayer]] from [[TacticalEvaluator]]: exchange-aware threat detection over every ship
+    * (not just 111 and 222), tempo-awareness at the leaf, a swap-based model of what recalling an exiled ship buys,
+    * and safe-escape counting for the corvette. See [[TacticalEvaluator]] for the full reasoning.
+    */
+  def tacticalPlayer(minimaxDepth: Int): MadPlayer =
+    gameStateDependentMinimaxMadPlayer(minimaxDepth, _ => tacticalTreeExplorer)
+
+  /** [[TreeExplorer]] wrapping [[TacticalEvaluator]] at its default weights - the entry point for callers that drive
+    * the search themselves rather than through a [[MadPlayer]], such as the web worker.
+    *
+    * A `val`, unlike [[claudeTheoryTreeExplorer]]: [[TacticalEvaluator.evaluate]] precomputes a set of tables from
+    * the weights it is given, and rebuilding those per call would throw away the point of having them.
+    */
+  val tacticalTreeExplorer: TreeExplorer.MadTreeExplorer =
+    TreeExplorer.MadGameStateTreeExplorer(TacticalEvaluator.evaluate(TacticalWeights.default))
+
+  /** Same as [[tacticalPlayer]], but with explicit [[TacticalWeights]] - what a tuner scores candidates with. */
+  def tacticalPlayerWithWeights(minimaxDepth: Int, weights: TacticalWeights): MadPlayer =
+    /* Built once and reused for every move of the game on purpose: `TacticalEvaluator.evaluate` precomputes a set of
+     * per-weights tables, and `gameStateDependentMinimaxMadPlayer` calls this function again at every single turn. */
+    val explorer = TreeExplorer.MadGameStateTreeExplorer(TacticalEvaluator.evaluate(weights))
+    gameStateDependentMinimaxMadPlayer(minimaxDepth, _ => explorer)
+
   def minimaxMadPlayer(minimaxDepth: Int)(using
       treeExplorer: TreeExplorer[GameState, GameAction, Team]
   ): MadPlayer =
