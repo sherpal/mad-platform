@@ -81,6 +81,10 @@ lazy val frontend = project
     scalaVersion                    := commonScalaVersion,
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    Compile / fastLinkJS / scalaJSLinkerOutputDirectory :=
+      baseDirectory.value / "target" / "fastopt",
+    Compile / fullLinkJS / scalaJSLinkerOutputDirectory :=
+      baseDirectory.value / "target" / "opt",
     libraryDependencies ++= List(
       "com.raquo"   %% "laminar"            % "17.0.0",
       "be.doeraene" %% "web-components-ui5" % "1.24.0"
@@ -130,29 +134,29 @@ lazy val fastOptWorker =
 lazy val fullOptWorker =
   taskKey[Unit]("fullOptJS the web-worker project, and copy the compiled file in Vite's assets.")
 
-Global / fastOptWorker := Def.uncached {
-  val _         = (`web-worker` / Compile / fastLinkJS).value
-  val outputDir = (`web-worker` / Compile / fastLinkJSOutput).value
+def copyWorker(
+    linkTask: Def.Initialize[Task[Attributed[org.scalajs.linker.interface.Report]]],
+    outputTask: Def.Initialize[Task[File]]
+): Def.Initialize[Task[Unit]] =
+  Def.task {
+    val _         = linkTask.value
+    val outputDir = outputTask.value
+    val targetDir = (ThisBuild / baseDirectory).value / "frontend" / "public" / "web-worker"
 
-  val targetDir = baseDirectory.value / "frontend" / "public" / "web-worker"
+    println(s"Copying worker files to $targetDir (from $outputDir)")
 
-  IO.copyDirectory(
-    outputDir,
-    targetDir
-  )
-}
+    IO.copyDirectory(outputDir, targetDir)
+  }
 
-Global / fullOptWorker := Def.uncached {
-  val _         = (`web-worker` / Compile / fullLinkJS).value
-  val outputDir = (`web-worker` / Compile / fullLinkJSOutput).value
+Global / fastOptWorker := copyWorker(
+  `web-worker` / Compile / fastLinkJS,
+  `web-worker` / Compile / fastLinkJSOutput
+).value
 
-  val targetDir = baseDirectory.value / "frontend" / "public" / "web-worker"
-
-  IO.copyDirectory(
-    outputDir,
-    targetDir
-  )
-}
+Global / fullOptWorker := copyWorker(
+  `web-worker` / Compile / fullLinkJS,
+  `web-worker` / Compile / fullLinkJSOutput
+).value
 
 val buildFrontend = taskKey[Unit]("Build frontend")
 

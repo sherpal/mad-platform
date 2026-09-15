@@ -10,7 +10,7 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
 
   const htmlPlugin = createHtmlPlugin()
 
-  const mainJS = `/target/scala-${scalaVersion}/frontend-${mode === 'production' ? 'opt' : 'fastopt'}/main.js`
+  const mainJS = `/target/${mode === 'production' ? 'opt' : 'fastopt'}/main.js`
   console.log('mainJS', mainJS)
   const script = `<script type="module" src="${mainJS}"></script>`
 
@@ -30,6 +30,9 @@ export default defineConfig(({ command, mode, ssrBuild }) => {
       port: 3000,
       open: base
     },
-    base: base
+    base: base,
+    build: {
+      chunkSizeWarningLimit: 2500
+    }
   }
 })
