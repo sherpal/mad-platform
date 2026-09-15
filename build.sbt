@@ -20,10 +20,8 @@ val usedScalacOptions = List(
 
 val commonSettings = List(
   scalaVersion                            := commonScalaVersion,
-  libraryDependencies += "org.scalameta"  %% "munit"      % "0.7.26" % Test,
-  libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.15.3" % Test,
-  libraryDependencies += "dev.zio"        %% "zio-test"   % "2.0.9",
-  testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+  libraryDependencies += "org.scalameta"  %% "munit"      % "1.3.6"  % Test,
+  libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.20.0" % Test,
   scalacOptions ++= usedScalacOptions
 )
 
@@ -43,8 +41,8 @@ lazy val game = projectMatrix
     scalaVersions = Seq(commonScalaVersion),
     settings = Seq(
       libraryDependencies ++= Seq(
-        "io.github.cquiroz" %% "scala-java-time"      % "2.4.0",
-        "io.github.cquiroz" %% "scala-java-time-tzdb" % "2.4.0"
+        "io.github.cquiroz" %% "scala-java-time"      % "2.7.0",
+        "io.github.cquiroz" %% "scala-java-time-tzdb" % "2.7.0"
       ),
       scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
     )
@@ -82,35 +80,14 @@ lazy val frontend = project
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory :=
-      baseDirectory.value / "target" / "fastopt",
+      baseDirectory.value / "target" / "development", // these are used by the magic %MODE% thing from vite
     Compile / fullLinkJS / scalaJSLinkerOutputDirectory :=
-      baseDirectory.value / "target" / "opt",
+      baseDirectory.value / "target" / "production",
     libraryDependencies ++= List(
       "com.raquo"   %% "laminar"            % "17.0.0",
       "be.doeraene" %% "web-components-ui5" % "1.24.0"
     ),
-    commonSettings,
-    onLoad := {
-      val outputFile   = baseDirectory.value / "scala-metadata.js"
-      val frontendName = name.value
-
-      println(s"Writing vite metadata helper at $outputFile")
-      IO.writeLines(
-        outputFile,
-        s"""
-           |const scalaVersion = "$commonScalaVersion"
-           |const frontendName = "${frontendName.toLowerCase}"
-           |
-           |exports.scalaMetadata = {
-           |  scalaVersion: scalaVersion,
-           |  frontendName: frontendName,
-           |}
-           |""".stripMargin.split("\n").toList,
-        StandardCharsets.UTF_8
-      )
-
-      onLoad.value
-    }
+    commonSettings
   )
   .dependsOn(`shared-js`)
 

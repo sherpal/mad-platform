@@ -1,38 +1,31 @@
-import { resolve } from 'path'
-import { createHtmlPlugin } from 'vite-plugin-html'
-import { scalaMetadata } from "./scala-metadata"
-
 import { defineConfig } from 'vite'
 
-const scalaVersion = scalaMetadata.scalaVersion
-
-export default defineConfig(({ command, mode, ssrBuild }) => {
-
-  const htmlPlugin = createHtmlPlugin()
-
-  const mainJS = `/target/${mode === 'production' ? 'opt' : 'fastopt'}/main.js`
-  console.log('mainJS', mainJS)
-  const script = `<script type="module" src="${mainJS}"></script>`
+export default defineConfig(({}) => {
 
   const base = "/mad-the-game/"
 
   return {
     publicDir: './public',
-    plugins: createHtmlPlugin({
-      minify: process.env.NODE_ENV === 'production',
-      inject: {
-        data: {
-          script
-        }
-      }
-    }),
+    plugins: [],
     server: {
       port: 3000,
       open: base
     },
     base: base,
     build: {
-      chunkSizeWarningLimit: 2500
+      chunkSizeWarningLimit: 2000,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'ui5',
+                test: /node_modules[\\/]@ui5/
+              }
+            ]
+          }
+        }
+      }
     }
   }
 })
