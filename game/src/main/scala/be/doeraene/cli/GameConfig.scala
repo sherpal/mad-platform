@@ -40,6 +40,14 @@ object GameConfig:
       skip: Int
   ) extends GameConfig
 
+  /** @param openings
+    *   how many openings to play once, to harvest labelled positions from; the games are split so that positions
+    *   from different openings never straddle the training/validation boundary
+    * @param gameDepth
+    *   search depth used to generate those games - it decides how good the play behind the labels is
+    */
+  case class TexelTune(openings: Int, gameDepth: Int, passes: Int, opponent: AIConfig) extends GameConfig
+
   /** @param iterations
     *   number of hill-climbing rounds to run
     * @param openings
@@ -187,6 +195,28 @@ object GameConfig:
     )
   }
 
+  private def texelTuneConfig(args: Vector[String]): GameConfig = {
+    if args.isEmpty then {
+      println("""
+          |Usage: texel-tune [openings] [game-depth] [passes] [opponent-json]
+          |Plays a battery once, harvests every position labelled by the result its game reached, then fits
+          |TacticalWeights by coordinate descent on how well they predict those results.
+          |openings: how many openings to harvest from (default 60, ie. 120 games)
+          |game-depth: search depth of the harvested games (default 3)
+          |passes: coordinate-descent sweeps over all parameters (default 12)
+          |Example: run texel-tune 60 3 12
+          |""".stripMargin)
+      throw RuntimeException("Early stop.")
+    }
+
+    TexelTune(
+      openings = Try(args(0).toInt).getOrElse(60),
+      gameDepth = Try(args(1).toInt).getOrElse(3),
+      passes = Try(args(2).toInt).getOrElse(12),
+      opponent = Try(args(3)).toOption.fold(AIConfig.JPaulTheory(0.05))(io.circe.parser.decode[AIConfig](_).toTry.get)
+    )
+  }
+
   private def bestActionConfig(args: Vector[String]): GameConfig = {
     if args.isEmpty then {
       println("""
@@ -264,5 +294,6 @@ object GameConfig:
         case "ai-benchmark" => madBenchmarkConfig(args.tail.toVector)
         case "tune-claude" => tuneClaudeConfig(args.tail.toVector)
         case "tune-tactical" => tuneTacticalConfig(args.tail.toVector)
+        case "texel-tune"    => texelTuneConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

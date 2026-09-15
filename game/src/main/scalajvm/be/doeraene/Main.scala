@@ -3,8 +3,9 @@ package be.doeraene
 import be.doeraene.cli.{AskForGameAction, GameConfig}
 import be.doeraene.mad.ai.Player.{MadPlayer, minimaxMadPlayer}
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
-import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner}
 import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
+import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
+import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
 import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Team}
 
 import java.nio.file.Paths
@@ -89,6 +90,39 @@ import scala.util.Random
 
       println(report.pretty(config1.toString, config2.toString))
       println(s"(took ${time.toSeconds}s)")
+
+    case GameConfig.TexelTune(openings, gameDepth, passes, opponentConfig) =>
+      val games    = benchmark.Benchmark.battery(openings, seed = 42L)
+      val opponent = opponentConfig.player(gameDepth)
+      println(s"Texel tuning: harvesting positions from ${games.size} depth-$gameDepth games vs $opponentConfig")
+
+      val (samples, harvestTime) = Player.timeIt(
+        TexelTuner.collectSamples(Player.tacticalPlayer(gameDepth), opponent, games)
+      )
+      /* Split by position order, not at random. Samples arrive grouped by game, so a contiguous cut keeps whole
+       * games on one side or the other; a random split would scatter near-identical consecutive positions of the
+       * same game across both sides and make the held-out loss meaninglessly optimistic. */
+      val (training, heldOut) = samples.splitAt(samples.length * 3 / 4)
+      println(s"Harvested ${samples.length} positions in ${harvestTime.toSeconds}s " +
+        s"(${training.length} training, ${heldOut.length} held out)")
+
+      val (fitted, scale) = TexelTuner.fit(training.toArray, heldOut.toArray, passes = passes) { sweep =>
+        println(
+          f"[pass ${sweep.pass}%2d] ${sweep.parameter}%-24s ${sweep.from}%9.4f -> ${sweep.to}%9.4f  " +
+            f"loss=${sweep.trainingLoss}%.6f"
+        )
+      }
+
+      println("=" * 70)
+      println(s"Fitted weights: $fitted")
+      println(f"Logistic scale: $scale%.3f")
+
+      val resultsDir = Paths.get("./data/tuning-results")
+      java.nio.file.Files.createDirectories(resultsDir)
+      val resultFile =
+        resultsDir.resolve(s"texel-weights-${java.time.LocalDateTime.now.toEpochSecond(ZoneOffset.UTC)}.txt")
+      java.nio.file.Files.writeString(resultFile, s"scale=$scale\n$fitted\n")
+      println(s"Saved to $resultFile")
 
     case GameConfig.TuneTactical(iterations, minimaxDepth, openings, seed, opponentConfig) =>
       val training   = benchmark.Benchmark.battery(openings, seed)

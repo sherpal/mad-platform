@@ -3,47 +3,55 @@ package be.doeraene.mad.ai
 /** Every tunable constant of [[TacticalEvaluator]], gathered so a candidate can be built, mutated and scored without
   * the evaluator's logic ever being touched - same contract as [[ClaudeWeights]] has with [[ClaudeEvaluator]].
   *
-  * These values are reasoned from the game's structure rather than fit to data:
-  *   - the material scale gives every ship a strictly positive value, so no term ever rewards throwing one away, and
-  *     spreads them by what actually decides a capture, `(attack, defence)`, with `movement` a secondary bonus and
-  *     `dualBonus` for the `(2,2)` ships that can take everything while only `(2,*)` can touch them;
-  *   - `hangingWeight` is 1.0 on purpose: a hanging-piece loss is already expressed in piece-value units, so it is
-  *     directly commensurable with the material term and needs no rescaling;
-  *   - the corvette terms sit an order of magnitude above material, because losing 111 is not a material loss, it is
-  *     the end of the game.
+  * These values are **fitted**, by [[be.doeraene.mad.ai.tuning.TexelTuner]], and they disagree sharply with the
+  * hand-reasoned set that preceded them. Against jPaul's theory over the full 81-opening battery they score 66.7% at
+  * depth 3 and 76.2% at depth 4, where the hand-reasoned values managed 51.5% and 49.7%. Against
+  * [[ClaudeEvaluator]] at depth 4, on openings no position of which entered the fit, 81.5%.
   *
-  * A word of warning for anyone running [[be.doeraene.mad.ai.tuning.TacticalWeightTuner]] over these: **tune at the
-  * depth you intend to play at**. A depth-2 hill climb produced a set that scored 69.2% against jPaul's theory at
-  * depth 2, on a battery of openings it had never seen - and 43.8% at depth 3, well below the 48.8% of the untuned
-  * values here. The reason is leaf parity. `alphaBeta` stops on a node where the *opponent* is to move at even
-  * depths and where *we* are at odd ones, and several terms here ([[rescueFactor]], [[corvetteTempoRelief]], and the
-  * on-move switch they feed in [[TacticalEvaluator]]) exist precisely to distinguish those two cases. Tuning at one
-  * parity fits weights to the regime the other parity never sees.
+  * Two things the fit did are worth understanding before touching these numbers.
+  *
+  * It raised [[huntWeight]] from 0.15 to 2.18 and [[huntHorizon]] from 3.5 to 5.1, while zeroing [[centerWeight]],
+  * [[bodyguardWeight]] and [[drawFear]]. The resulting evaluator is close to jPaul's own theory - drive everything at
+  * the enemy corvette - with this evaluator's exchange resolution and corvette safety layered on top. The
+  * hand-reasoned weights had that pull an order of magnitude too weak, and the visible symptom was draws: 25 of 162
+  * at depth 3 before, 12 after.
+  *
+  * The material scale is floored deliberately. An unconstrained fit drives [[materialBase]], [[defenceBonus]] and
+  * [[movementBonus]] to zero, loads everything onto [[attackBonus]], and so prices 112, 211 and 212 at *nothing* -
+  * which fits the data fine ("has attack-2 ships alive" predicts winning) and even scores 70.4% against jPaul at
+  * depth 4, because material is not what protects a ship here. But nothing in that evaluation objects to handing
+  * those three ships over, and a human will take them in a way no engine in the battery ever tried. With floors
+  * under the material weights (see [[be.doeraene.mad.ai.tuning.TexelTuner]]) the cheapest ship is worth 0.80 against
+  * the cruiser's 7.46, and the fit came back *stronger* at depth 4 - 76.2% against 70.4%, with 37 draws instead of
+  * 50. Keeping material worth something costs nothing and converts won positions better.
+  *
+  * That 9:1 spread is still steep, so a human may find favourable trades against 112. The floor closes the outright
+  * giveaway, not the whole gap.
   */
 final case class TacticalWeights(
     // --- material scale ---
-    materialBase: Double = 3.0,
-    attackBonus: Double = 1.5,
-    defenceBonus: Double = 1.0,
-    movementBonus: Double = 0.7,
-    dualBonus: Double = 1.5,
-    recallCredit: Double = 0.4,
+    materialBase: Double = 0.00018310546875,
+    attackBonus: Double = 1.9284236454367385,
+    defenceBonus: Double = 0.8,
+    movementBonus: Double = 4.7258883,
+    dualBonus: Double = 0.005651267072493164,
+    recallCredit: Double = 0.00024694824218749996,
     // --- hanging pieces / exchanges ---
-    hangingWeight: Double = 1.0,
-    rescueFactor: Double = 0.35,
+    hangingWeight: Double = 2.1320162149188997,
+    rescueFactor: Double = 0.28302713808849905,
     // --- corvette safety ---
-    corvetteAttackedWeight: Double = 40.0,
-    corvetteTempoRelief: Double = 0.25,
-    corvetteTrappedWeight: Double = 3.0,
-    corvetteApproachWeight: Double = 0.7,
-    bodyguardWeight: Double = 0.4,
+    corvetteAttackedWeight: Double = 89.17401575941923,
+    corvetteTempoRelief: Double = 0.08839582233701995,
+    corvetteTrappedWeight: Double = 2.553628313580442,
+    corvetteApproachWeight: Double = 0.12214487249999996,
+    bodyguardWeight: Double = 0.0001,
     // --- initiative ---
-    huntWeight: Double = 0.15,
-    huntHorizon: Double = 3.5,
-    mobilityWeight: Double = 0.06,
-    centerWeight: Double = 0.12,
+    huntWeight: Double = 2.1828517708717126,
+    huntHorizon: Double = 5.145643234374999,
+    mobilityWeight: Double = 0.516096,
+    centerWeight: Double = 0.0001,
     // --- the 30-turns-without-an-exile draw ---
-    drawFear: Double = 0.4
+    drawFear: Double = 0.0001
 )
 
 object TacticalWeights:
