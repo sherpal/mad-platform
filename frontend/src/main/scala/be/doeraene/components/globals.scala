@@ -1,21 +1,26 @@
 package be.doeraene.components
 
-import com.raquo.laminar.api.L.*
-import urldsl.language.dummyErrorImpl.*
-import be.doeraene.globals.madRulesPath
-import be.doeraene.mad.game.GameState
-import be.doeraene.cli.CustomGameStateParser.generate
-import be.doeraene.frontendutils.{download, PrimaryButton}
-import be.doeraene.models.GameHistory as GameHistoryModel
-import urldsl.errors.DummyError
-import org.scalajs.dom
-import be.doeraene.communication.makeCall
+import be.doeraene.cli.CustomGameStateParser
 import be.doeraene.components.router.Router
+import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
+import be.doeraene.frontendutils.PrimaryButton
+import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
-import urldsl.language.PathSegment
-import urldsl.vocabulary.FromString
-import urldsl.vocabulary.Printer
+import be.doeraene.models.GameHistory as GameHistoryModel
+import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.webcomponents.ui5.configkeys.IconName
+import com.raquo.laminar.api.L.*
+import io.circe.syntax.*
+import org.scalajs.dom
+import urldsl.errors.DummyError
+import urldsl.language.PathSegment
+import urldsl.language.dummyErrorImpl.*
+import urldsl.vocabulary.{FromString, Printer}
+
+import scala.concurrent.ExecutionContext
+import scala.scalajs.js
+import scala.scalajs.js.JavaScriptException
+import scala.util.{Failure, Success}
 
 //noinspection TypeAnnotation
 
@@ -33,7 +38,6 @@ def downloadRulesComponent = PrimaryButton(
   Val("Download rules"),
   Val(false),
   Observer { _ =>
-    // a(href := madRulesPath, "Download rules")
     val link = dom.document.createElement("a").asInstanceOf[dom.html.Anchor]
     link.href = madRulesPath
     link.innerHTML = "Download rules"
@@ -47,8 +51,8 @@ def downloadRulesComponent = PrimaryButton(
 
 val gameHistoryParam = param[String]("history").as[GameHistoryModel](using
   new urldsl.vocabulary.Codec[String, GameHistoryModel] {
-    import io.circe.syntax.given
     import io.circe.parser.decode
+    import io.circe.syntax.given
     def leftToRight(str: String): GameHistoryModel =
       decode[GameHistoryModel](dom.window.atob(str)).toOption.get // might blow up
     def rightToLeft(gh: GameHistoryModel): String =
@@ -77,19 +81,41 @@ val gameTypeParam = param[GameBoundaries.GameType]("game-type")
 
 val withInitialSpecialRuleParam = param[Boolean]("initial-special-rule")
 
-val saveGamePath = (root / "api" / "saved-game.mad") ? gameHistoryParam
-
-def downloadGameHistoryComponent(gameHistory: GameHistoryModel) = PrimaryButton(
+def downloadGameHistoryComponent(gameHistory: GameHistoryModel, errorObserver: Observer[Throwable])(using
+    ExecutionContext
+) = PrimaryButton(
   Val("Save game"),
   Val(false),
   Observer { _ =>
-    val link = dom.document.createElement("a").asInstanceOf[dom.html.Anchor]
-    link.href = "/" ++ saveGamePath.createUrlString((), gameHistory)
-    link.target = "_blank"
-    link.innerHTML = "Save game"
-    dom.document.body.appendChild(link)
-    link.click()
-    dom.document.body.removeChild(link)
+    val zip = JSZip()
+    gameHistory.allGameStates.foreach { gameState =>
+      zip.fileJSString(
+        s"game-state-${gameState.turnNumber}.txt",
+        CustomGameStateParser.generate(gameState)
+      )
+    }
+    zip.fileJSString(
+      "actions.json",
+      gameHistory.actions.asJson.spaces2
+    )
+    zip.generate(GenerateOptions[dom.Blob]).onComplete {
+      case Failure(exception) =>
+        dom.console.error("Zip generation failed", JavaScriptException(exception))
+        errorObserver.onNext(exception)
+      case Success(blob) =>
+        dom.console.log("Zip generation succeeded")
+        dom.console.log(blob)
+
+        val url = dom.URL.createObjectURL(blob)
+        val a   = dom.document.createElement("a").asInstanceOf[dom.HTMLAnchorElement]
+        a.href = url
+        a.download = "saved-game.mad"
+        dom.document.body.appendChild(a)
+        a.click()
+        a.remove()
+
+        js.timers.setTimeout(0)(dom.URL.revokeObjectURL(url))
+    }
   },
   maybeIcon = Some(IconName.save)
 )
