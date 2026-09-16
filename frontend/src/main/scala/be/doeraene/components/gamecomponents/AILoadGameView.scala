@@ -1,30 +1,27 @@
 package be.doeraene.components.gamecomponents
 
 import be.doeraene.components.RouteDefinitions.*
-import be.doeraene.components.{linkModifiers, Constants}
-import urldsl.language.dummyErrorImpl.*
-import com.raquo.laminar.api.L.*
-import be.doeraene.mad.game.*
-import be.doeraene.utils.communication.MadTranslators.given
-import be.doeraene.models.GameHistory as GameHistoryModel
-import be.doeraene.components.router.Link
 import be.doeraene.components.router.Router.router
-import org.scalajs.dom.html
-import org.scalajs.dom
-import org.scalajs.dom.FormData
-import org.scalajs.dom.Fetch.fetch
-import be.doeraene.communication.makeCall.postFormData
+import be.doeraene.facades.jszip.JSZip
 import be.doeraene.frontendutils.{ChoseFileButton, PrimaryButton}
-import io.circe.Encoder
+import be.doeraene.mad.game.*
+import be.doeraene.models.GameHistory as GameHistoryModel
 import be.doeraene.webcomponents.ui5.*
+import be.doeraene.webcomponents.ui5.configkeys.ButtonDesign
+import com.raquo.laminar.api.L.*
+import org.scalajs.dom
+import org.scalajs.dom.{html, FormData}
+import urldsl.errors.DummyError
+import urldsl.language.PathSegment
+import urldsl.language.dummyErrorImpl.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object AILoadGameView {
 
-  def here = againstAI / "load-game"
+  def here: PathSegment[Unit, DummyError] = againstAI / "load-game"
 
-  val moveToTheGame = Observer[(GameHistoryModel, Option[Team])] {
+  private val moveToTheGame = Observer[(GameHistoryModel, Option[Team])] {
     (gameHistory: GameHistoryModel, maybeTeam: Option[Team]) =>
       router.moveTo(
         "/" ++ playAIGame
@@ -39,16 +36,7 @@ object AILoadGameView {
       )
   }
 
-  def apply() = {
-    def formData(colour: Option[Team], file: dom.File): FormData = {
-      val fd = new FormData
-
-      fd.append("colour", colour.fold("random")(_.prettyPrint))
-      fd.append("mad-game.mad", file)
-
-      fd
-    }
-
+  def apply(): HtmlElement = {
     val submitBus: EventBus[Unit] = new EventBus
 
     val chosenColour: Var[Option[Team]]    = Var(Option.empty)
@@ -57,7 +45,7 @@ object AILoadGameView {
     type ColourSelectValue = "random" | "TeamBlue" | "TeamRed"
 
     extension (colour: ColourSelectValue)
-      def toMaybeTeam: Option[Team] = colour match {
+      private def toMaybeTeam: Option[Team] = colour match {
         case "random"   => Option.empty[Team]
         case "TeamRed"  => Some(Team.Red)
         case "TeamBlue" => Some(Team.Blue)
@@ -66,19 +54,33 @@ object AILoadGameView {
     val maybeChosenFileNameVar: Var[Option[dom.File]] = Var(Option.empty)
 
     val submitEvents = submitBus.events.sample(chosenColour.signal, maybeChosenFileNameVar.signal).collect {
-      case (colour, Some(file)) => formData(colour, file)
+      case (colour, Some(file)) => (colour = colour, file = file)
     }
 
-    val responses: EventStream[(GameHistoryModel, Option[Team], Boolean)] = submitEvents
-      .flatMapSwitch(data => EventStream.fromFuture(postFormData[GameHistoryModel]("api/load-game-ai", data)))
-      .withCurrentValueOf(chosenColour.signal)
+    val responses: EventStream[(Either[Throwable, GameHistoryModel], Option[Team], Boolean)] = submitEvents
+      .flatMapSwitch(data =>
+        EventStream
+          .fromFuture(
+            JSZip
+              .load(data.file)
+              .flatMap(be.doeraene.components.extractGameHistory)
+              .map[Either[Throwable, GameHistoryModel]](Right.apply)
+              .recover { case throwable: Throwable =>
+                Left(throwable)
+              }
+          )
+          .map(gameHistory => (gameHistory, data.colour))
+      )
       .withCurrentValueOf(goToAdvancedSettings.signal)
 
     val advancedSettingsResponses: EventStream[(GameHistoryModel, Option[Team])] =
-      responses.collect { case (gameHistory, maybeTeam, true) => (gameHistory, maybeTeam) }
+      responses.collect { case (Right(gameHistory), maybeTeam, true) => (gameHistory, maybeTeam) }
 
     val noAdvancedSettingsResponses: EventStream[(GameHistoryModel, Option[Team])] =
-      responses.collect { case (gameHistory, maybeTeam, false) => (gameHistory, maybeTeam) }
+      responses.collect { case (Right(gameHistory), maybeTeam, false) => (gameHistory, maybeTeam) }
+
+    val loadErrorsEvents: EventStream[Throwable] = responses.map(_._1).collect { case Left(throwable) => throwable }
+    val closeErrorDialogBus                      = new EventBus[Unit]
 
     div(
       className := "AILoadGameView",
@@ -133,7 +135,48 @@ object AILoadGameView {
               )
             )
           )
+        ),
+      Dialog.of(
+        _.showFromEvents(loadErrorsEvents.mapToUnit),
+        _.closeFromEvents(closeErrorDialogBus.events),
+        _.headerText := "Error while loading game",
+        _ =>
+          p(
+            "Error while loading game: ",
+            child.text <-- loadErrorsEvents.map(throwable => Option(throwable.getMessage).getOrElse("Unknown Error")),
+            div {
+              val openVar = Var(false)
+              Vector[Mod[HtmlElement]](
+                child.maybe <-- openVar.signal.invert.map(
+                  Option.when(_)(
+                    span(
+                      cursor.pointer,
+                      textDecoration.underline,
+                      "Show Details...",
+                      onClick.mapTo(true) --> openVar.writer
+                    )
+                  )
+                ),
+                child.maybe <-- openVar.signal.map(
+                  Option.when(_)(
+                    pre(
+                      overflowX.auto,
+                      width.percent := 100,
+                      child.text   <-- loadErrorsEvents.map(be.doeraene.utils.displayThrowable)
+                    )
+                  )
+                )
+              )
+            }
+          ),
+        _.slots.footer := Bar.of(
+          _.slots.endContent := Button.of(
+            _.design := ButtonDesign.Transparent,
+            _ => "Close",
+            _.events.onClick.mapToUnit --> closeErrorDialogBus.writer
+          )
         )
+      )
     )
 
   }

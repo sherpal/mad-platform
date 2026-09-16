@@ -2,7 +2,7 @@ package be.doeraene.components
 
 import be.doeraene.cli.CustomGameStateParser
 import be.doeraene.components.router.Router
-import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
+import be.doeraene.facades.jszip
 import be.doeraene.frontendutils.PrimaryButton
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
@@ -17,7 +17,7 @@ import urldsl.language.PathSegment
 import urldsl.language.dummyErrorImpl.*
 import urldsl.vocabulary.{FromString, Printer}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js
 import scala.scalajs.js.JavaScriptException
 import scala.util.{Failure, Success}
@@ -81,31 +81,41 @@ val gameTypeParam = param[GameBoundaries.GameType]("game-type")
 
 val withInitialSpecialRuleParam = param[Boolean]("initial-special-rule")
 
+def extractGameHistory(files: jszip.Files)(using ExecutionContext): Future[GameHistoryModel] = {
+  val initialGameStateFile = files.files.values
+    .filter(_.name.startsWith("game-state"))
+    .minBy(_.name.drop("game-state-".length).dropRight(4).toInt)
+
+  for {
+    initialGameStateEncoded <- initialGameStateFile.text
+    initialGameState        <- Future.fromTry(CustomGameStateParser.parse(initialGameStateEncoded).toTry)
+    actionsText             <- files.file("actions.json").text
+    actions                 <- Future.fromTry(io.circe.parser.decode[List[GameAction]](actionsText).toTry)
+  } yield GameHistoryModel(initialGameState, actions)
+}
+
 def downloadGameHistoryComponent(gameHistory: GameHistoryModel, errorObserver: Observer[Throwable])(using
     ExecutionContext
 ) = PrimaryButton(
   Val("Save game"),
   Val(false),
   Observer { _ =>
-    val zip = JSZip()
+    val zip = jszip.JSZip()
     gameHistory.allGameStates.foreach { gameState =>
-      zip.fileJSString(
+      zip.file(
         s"game-state-${gameState.turnNumber}.txt",
         CustomGameStateParser.generate(gameState)
       )
     }
-    zip.fileJSString(
+    zip.file(
       "actions.json",
       gameHistory.actions.asJson.spaces2
     )
-    zip.generate(GenerateOptions[dom.Blob]).onComplete {
+    zip.generate[dom.Blob].onComplete {
       case Failure(exception) =>
         dom.console.error("Zip generation failed", JavaScriptException(exception))
         errorObserver.onNext(exception)
       case Success(blob) =>
-        dom.console.log("Zip generation succeeded")
-        dom.console.log(blob)
-
         val url = dom.URL.createObjectURL(blob)
         val a   = dom.document.createElement("a").asInstanceOf[dom.HTMLAnchorElement]
         a.href = url
