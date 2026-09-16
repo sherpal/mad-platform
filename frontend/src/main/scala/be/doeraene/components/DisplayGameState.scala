@@ -32,8 +32,8 @@ object DisplayGameState:
     */
   private type RawPosition = (Int, Int)
 
-  /** What dropping a dragged piece onto a given board cell would need to match, to figure out which [[GameAction]]
-    * that drop represents: either the square itself (for a movement action), or the piece occupying it (for a
+  /** What dropping a dragged piece onto a given board cell would need to match, to figure out which [[GameAction]] that
+    * drop represents: either the square itself (for a movement action), or the piece occupying it (for a
     * permutation/rotation, which are only ever legal between pieces of the same team, so never collide with a
     * movement's target square).
     */
@@ -48,7 +48,7 @@ object DisplayGameState:
       currentClientX: Double,
       currentClientY: Double,
       isDragging: Boolean,
-      targets: Map[DropTarget, List[GameAction]]
+      targets: Map[DropTarget, Vector[GameAction]]
   )
 
   private final case class AmbiguousChoice(
@@ -59,60 +59,62 @@ object DisplayGameState:
   )
 
   /** A move that has landed on a bonus-enabling square, but whose "second part" (the row-bonus permutation/rotation)
-    * hasn't been decided yet: the player sees the board as if `movement1` already happened, and can either drag a
-    * piece to complete one of `bonuses`, or explicitly skip and commit `movement1` alone.
+    * hasn't been decided yet: the player sees the board as if `movement1` already happened, and can either drag a piece
+    * to complete one of `bonuses`, or explicitly skip and commit `movement1` alone.
     */
   private final case class PendingBonus(
       movement1: GameAction.GamePieceMoves1,
-      bonuses: List[GameAction.LastRowBonus]
+      bonuses: Vector[GameAction.LastRowBonus]
   )
 
-  /** Returns the [[DropTarget]] that dropping `piece` there would represent, if `action` is a way for `piece` to end
-    * up there.
+  /** Returns the [[DropTarget]] that dropping `piece` there would represent, if `action` is a way for `piece` to end up
+    * there.
     */
   private def dropTargetFor(piece: GamePiece, action: GameAction, gameState: GameState): Option[DropTarget] =
     action match {
       case movement: GameAction.MovementAction if movement.piece == piece =>
         movement.finalPosition(gameState).map(pos => Left(pos.asPair))
-      case GameAction.Permutation(piece1, piece2) if piece1 == piece         => Some(Right(piece2))
-      case GameAction.Permutation(piece1, piece2) if piece2 == piece         => Some(Right(piece1))
-      case GameAction.Rotation(piece1, piece2, piece3) if piece1 == piece    => Some(Right(piece2))
-      case GameAction.Rotation(piece1, piece2, piece3) if piece2 == piece    => Some(Right(piece3))
-      case GameAction.Rotation(piece1, piece2, piece3) if piece3 == piece    => Some(Right(piece1))
+      case GameAction.Permutation(piece1, piece2) if piece1 == piece      => Some(Right(piece2))
+      case GameAction.Permutation(piece1, piece2) if piece2 == piece      => Some(Right(piece1))
+      case GameAction.Rotation(piece1, piece2, piece3) if piece1 == piece => Some(Right(piece2))
+      case GameAction.Rotation(piece1, piece2, piece3) if piece2 == piece => Some(Right(piece3))
+      case GameAction.Rotation(piece1, piece2, piece3) if piece3 == piece => Some(Right(piece1))
       case bonus: GameAction.LastRowBonus if bonus.movement1.piece == piece =>
         bonus.movement1.finalPosition(gameState).map(pos => Left(pos.asPair))
       case _ => None
     }
 
-  private def dragTargetsFor(piece: GamePiece, gameState: GameState): Map[DropTarget, List[GameAction]] =
-    gameState.allValidActions
+  private def dragTargetsFor(piece: GamePiece, gameState: GameState): Map[DropTarget, Vector[GameAction]] =
+    gameState.allValidActions.toVector
       .flatMap(action => dropTargetFor(piece, action, gameState).map(_ -> action))
       .groupMap(_._1)(_._2)
 
   /** Returns every [[DropTarget]] that taking `action` would visibly affect: every involved piece's own cell (be it a
-    * board square or an exile-tray slot), plus the destination square for a movement. Used to preview, while hovering
-    * a valid drop, not just where the dragged piece lands but where the *other* pieces a permutation/rotation/bonus
+    * board square or an exile-tray slot), plus the destination square for a movement. Used to preview, while hovering a
+    * valid drop, not just where the dragged piece lands but where the *other* pieces a permutation/rotation/bonus
     * touches will end up too.
     */
   private def involvedDropTargets(action: GameAction, gameState: GameState): Set[DropTarget] =
-    val involvedPieces: List[GamePiece] = action match {
-      case movement: GameAction.MovementAction => List(movement.piece)
+    val involvedPieces: Vector[GamePiece] = action match {
+      case movement: GameAction.MovementAction   => Vector(movement.piece)
       case shift: GameAction.PieceShiftingAction => shift.involvedPieces
-      case bonus: GameAction.LastRowBonus        => bonus.movement1.piece :: bonus.shiftAction.involvedPieces
-      case _                                     => Nil
+      case bonus: GameAction.LastRowBonus        => bonus.shiftAction.involvedPieces.prepended(bonus.movement1.piece)
+      case _                                     => Vector()
     }
     val pieceTargets: Set[DropTarget] = involvedPieces.map(p => Right(p): DropTarget).toSet
     val positionTargets: Set[DropTarget] =
       involvedPieces.flatMap(p => gameState.pieces.get(p).map(pos => Left(pos.asPair): DropTarget)).toSet
     val destinationTargets: Set[DropTarget] = action match {
-      case movement: GameAction.MovementAction => movement.finalPosition(gameState).map(pos => Left(pos.asPair): DropTarget).toSet
-      case bonus: GameAction.LastRowBonus => bonus.movement1.finalPosition(gameState).map(pos => Left(pos.asPair): DropTarget).toSet
-      case _                              => Set.empty
+      case movement: GameAction.MovementAction =>
+        movement.finalPosition(gameState).map(pos => Left(pos.asPair): DropTarget).toSet
+      case bonus: GameAction.LastRowBonus =>
+        bonus.movement1.finalPosition(gameState).map(pos => Left(pos.asPair): DropTarget).toSet
+      case _ => Set.empty
     }
     pieceTargets ++ positionTargets ++ destinationTargets
 
-  /** Returns, for every piece that taking `action` would move, the [[DropTarget]] it ends up at - a board position,
-    * or (only for the piece sacrificed to revive its exiled partner) its own exile-tray slot. Mirrors exactly how
+  /** Returns, for every piece that taking `action` would move, the [[DropTarget]] it ends up at - a board position, or
+    * (only for the piece sacrificed to revive its exiled partner) its own exile-tray slot. Mirrors exactly how
     * [[GameAction.act]] itself resolves destinations (from the *pre-action* positions), so it stays correct without
     * needing to duplicate that logic's intent.
     */
@@ -140,18 +142,18 @@ object DisplayGameState:
     piece.team == team && gameState.turnOfTeam == team && !gameState.ended
 
   /** Recognizes the one kind of ambiguity a drop is allowed to have: a plain single-square move, plus one or more
-    * [[GameAction.LastRowBonus]] built on that exact same move. When that's the shape, we don't ask the player to
-    * pick from a list - we let them see the move as already made and decide the optional "second part" (see
+    * [[GameAction.LastRowBonus]] built on that exact same move. When that's the shape, we don't ask the player to pick
+    * from a list - we let them see the move as already made and decide the optional "second part" (see
     * [[PendingBonus]]) themselves, by dragging, the same way any other permutation/rotation is done.
     */
   private def splitMovementAndBonuses(
-      actions: List[GameAction]
-  ): Option[(GameAction.GamePieceMoves1, List[GameAction.LastRowBonus])] =
-    actions.collect { case movement: GameAction.GamePieceMoves1 => movement }.distinct match {
+      actions: Vector[GameAction]
+  ): Option[(GameAction.GamePieceMoves1, Vector[GameAction.LastRowBonus])] =
+    actions.collect { case movement: GameAction.GamePieceMoves1 => movement }.distinct.toList match {
       case movement :: Nil =>
-        actions.collect { case bonus: GameAction.LastRowBonus if bonus.movement1 == movement => bonus } match {
+        actions.collect { case bonus: GameAction.LastRowBonus if bonus.movement1 == movement => bonus }.toList match {
           case Nil     => None
-          case bonuses => Some(movement -> bonuses)
+          case bonuses => Some(movement -> bonuses.toVector)
         }
       case _ => None
     }
@@ -165,13 +167,13 @@ object DisplayGameState:
       piece: GamePiece,
       pending: PendingBonus,
       postMoveGameState: GameState
-  ): Map[DropTarget, List[GameAction]] =
+  ): Map[DropTarget, Vector[GameAction]] =
     pending.bonuses
       .flatMap(bonus => dropTargetFor(piece, bonus.shiftAction, postMoveGameState).map(_ -> (bonus: GameAction)))
       .groupMap(_._1)(_._2)
 
-  /** Parses the `data-dropkey` attribute we stamp on every in-bounds cell back into the [[DropTarget]]s it
-    * represents: always the cell's own position, and also the piece sitting on it when there is one.
+  /** Parses the `data-dropkey` attribute we stamp on every in-bounds cell back into the [[DropTarget]]s it represents:
+    * always the cell's own position, and also the piece sitting on it when there is one.
     */
   private def dropTargetsFromElement(element: dom.Element): List[DropTarget] =
     Option(element.getAttribute("data-dropkey")).toList.flatMap(_.split(';').toList.flatMap {
@@ -257,14 +259,14 @@ object DisplayGameState:
         if !drag.isDragging then pieceClickObserver.onNext(Some(drag.piece))
         else
           findDropTargetsAtPoint(ev.clientX, ev.clientY).flatMap(drag.targets.getOrElse(_, Nil)).distinct match {
-            case Nil => ()
+            case Nil           => ()
             case action :: Nil =>
               // Any real dispatch - whether it's a plain move or the second part of a pending bonus - settles
               // whatever bonus decision was in flight.
               pendingBonusVar.set(None)
               dragActionObserver.onNext(action)
             case many =>
-              splitMovementAndBonuses(many) match {
+              splitMovementAndBonuses(many.toVector) match {
                 case Some((movement, bonuses)) => pendingBonusVar.set(Some(PendingBonus(movement, bonuses)))
                 case None =>
                   ambiguousChoiceVar.set(Some(AmbiguousChoice(ev.clientX, ev.clientY, many, drag.gameState)))
@@ -279,9 +281,9 @@ object DisplayGameState:
 
     val dragGhost: HtmlElement = div(
       className := "drag-ghost",
-      display <-- dragStateVar.signal.map(_.exists(_.isDragging)).map(if _ then "block" else "none"),
-      left    <-- dragStateVar.signal.map(_.fold("0px")(d => s"${d.currentClientX}px")),
-      top     <-- dragStateVar.signal.map(_.fold("0px")(d => s"${d.currentClientY}px")),
+      display  <-- dragStateVar.signal.map(_.exists(_.isDragging)).map(if _ then "block" else "none"),
+      left     <-- dragStateVar.signal.map(_.fold("0px")(d => s"${d.currentClientX}px")),
+      top      <-- dragStateVar.signal.map(_.fold("0px")(d => s"${d.currentClientY}px")),
       img(
         width := "64px",
         src <-- dragStateVar.signal.map(_.fold("")(d => "/" ++ RouteDefinitions.gamePieceImagePath.createPath(d.piece)))
@@ -366,9 +368,9 @@ object DisplayGameState:
       )
     )
 
-  /** Shown once a move lands on a bonus-enabling square: the board above already previews `movement1` as done, and
-    * this either waits for the player to drag a piece to complete one of `pending.bonuses`, or lets them explicitly
-    * commit to just the move, no bonus.
+  /** Shown once a move lands on a bonus-enabling square: the board above already previews `movement1` as done, and this
+    * either waits for the player to drag a piece to complete one of `pending.bonuses`, or lets them explicitly commit
+    * to just the move, no bonus.
     */
   private def renderPendingBonusBanner(
       pending: PendingBonus,
@@ -440,7 +442,9 @@ object DisplayGameState:
       hoveredActionSignal.map(_.fold(Set.empty[DropTarget])(involvedDropTargets(_, gameState)))
 
     def hoverPreviewClass(candidates: List[DropTarget]): Signal[String] =
-      hoveredInvolvedTargetsSignal.map(targets => if candidates.exists(targets.contains) then "hover-move-preview" else "")
+      hoveredInvolvedTargetsSignal.map(targets =>
+        if candidates.exists(targets.contains) then "hover-move-preview" else ""
+      )
 
     // Where every *other* piece a hovered permutation/rotation/bonus touches will actually end up - the dragged
     // piece's own destination is excluded, since it already has its own ghost following the pointer.
@@ -469,7 +473,9 @@ object DisplayGameState:
           case None => if canDragPiece(piece, gameState, team) then dragTargetsFor(piece, gameState) else Map.empty
         }
         dragStateVar.set(
-          Some(DragState(piece, ev.pointerId, gameState, ev.clientX, ev.clientY, ev.clientX, ev.clientY, false, targets))
+          Some(
+            DragState(piece, ev.pointerId, gameState, ev.clientX, ev.clientY, ev.clientX, ev.clientY, false, targets)
+          )
         )
       }
 
@@ -494,11 +500,11 @@ object DisplayGameState:
                   val candidates = List(Left(position.asPair): DropTarget)
                   td(
                     isBlackSquare(rowIndex, colIndex),
-                    className := withBorderCls,
+                    className           := withBorderCls,
                     dataAttr("dropkey") := dropKeyAttribute(position.asPair, None),
-                    className <-- dropHighlightClass(candidates),
-                    className <-- hoverPreviewClass(candidates),
-                    child.maybe <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
+                    className          <-- dropHighlightClass(candidates),
+                    className          <-- hoverPreviewClass(candidates),
+                    child.maybe        <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
                     blanks((rowIndex, colIndex)),
                     onMouseEnter.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
                     onMouseLeave.mapTo(Option.empty[GamePiece]) --> hoveredPieceObserver,
@@ -508,12 +514,12 @@ object DisplayGameState:
                   val candidates = List(Left(position.asPair): DropTarget, Right(piece): DropTarget)
                   td(
                     isBlackSquare(rowIndex, colIndex),
-                    className := withBorderCls,
+                    className           := withBorderCls,
                     dataAttr("dropkey") := dropKeyAttribute(position.asPair, Some(piece)),
-                    className <-- dropHighlightClass(candidates),
-                    className <-- hoverPreviewClass(candidates),
-                    className <-- occupantDimClass(candidates),
-                    child.maybe <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
+                    className          <-- dropHighlightClass(candidates),
+                    className          <-- hoverPreviewClass(candidates),
+                    className          <-- occupantDimClass(candidates),
+                    child.maybe        <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
                     images(piece),
                     onMouseEnter.mapTo(Some(piece)) --> hoveredPieceObserver,
                     onMouseLeave.mapTo(None) --> hoveredPieceObserver,
@@ -534,17 +540,20 @@ object DisplayGameState:
     // Own exiled pieces are shown so that a permutation/rotation bringing one of them back onto the board (the
     // rules allow this whenever enough of the other pieces involved are still alive) has something to drag onto/from.
     val exiledOwnPieces: List[GamePiece] =
-      GamePiece.pieces.filter(piece => piece.team == team && !gameState.pieceIsAlive(piece)).toList.sortBy(_.prettyPrint)
+      GamePiece.pieces
+        .filter(piece => piece.team == team && !gameState.pieceIsAlive(piece))
+        .toList
+        .sortBy(_.prettyPrint)
 
     def exiledPieceCell(piece: GamePiece): HtmlElement = {
       val candidates = List(Right(piece): DropTarget)
       div(
-        className := "exile-cell with-border",
+        className           := "exile-cell with-border",
         dataAttr("dropkey") := exiledPieceDropKeyAttribute(piece),
-        className <-- dropHighlightClass(candidates),
-        className <-- hoverPreviewClass(candidates),
-        className <-- occupantDimClass(candidates),
-        child.maybe <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
+        className          <-- dropHighlightClass(candidates),
+        className          <-- hoverPreviewClass(candidates),
+        className          <-- occupantDimClass(candidates),
+        child.maybe        <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
         images(piece),
         onMouseEnter.mapTo(Some(piece)) --> hoveredPieceObserver,
         onMouseLeave.mapTo(None) --> hoveredPieceObserver,
@@ -564,7 +573,7 @@ object DisplayGameState:
       if exiledOwnPieces.nonEmpty then
         div(
           className := "exile-tray",
-          //span(className := "exile-tray-label", "Exiled pieces:"),
+          // span(className := "exile-tray-label", "Exiled pieces:"),
           exiledOwnPieces.map(exiledPieceCell)
         )
       else span()

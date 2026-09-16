@@ -37,7 +37,7 @@ object AIApi:
     updateProgress(0)
 
     for {
-      actionsWithScores <- futureParN(4)(possibleActions)(action =>
+      actionsWithScores <- futureParN(4)(possibleActions.toVector)(action =>
         makeWorkerCompute(
           CurrentGameStateWithSelectedAction(
             currentGameState,

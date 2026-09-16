@@ -17,7 +17,7 @@ object DisplayPossibleActions:
   ): HtmlElement = div(
     className := "possible-actions-panel",
     minWidth <-- gameStateSignal.map(_.ended).map(if _ then "auto" else "400px"),
-    maxWidth := "100%",
+    maxWidth  := "100%",
     children <-- gameStateSignal.map(gameState =>
       if gameState.ended then List()
       else if gameState.turnOfTeam != team then
@@ -45,9 +45,11 @@ object DisplayPossibleActions:
             _.mode      := ListMode.SingleSelect,
             List(height := "500px", overflowY := "auto"),
             className := "possible-actions",
-            gameState.allValidActions.map(
-              displayOneAction(_, gameState, actionWriter, displayActionWriter, maybeHoveredPieceSignal)
-            )
+            gameState.allValidActions
+              .map(
+                displayOneAction(_, gameState, actionWriter, displayActionWriter, maybeHoveredPieceSignal)
+              )
+              .native
           )
         )
     )
