@@ -15,7 +15,7 @@ sealed trait GameAction:
   /** @see
     *   act
     */
-  @inline final def apply(gameState: GameState): GameState = act(gameState)
+  inline final def apply(gameState: GameState): GameState = act(gameState)
 
   /** Describes how the action act on the game state.
     *
@@ -84,13 +84,15 @@ object GameAction:
     def willPieceMove(gamePiece: GamePiece): Boolean         = false
   end Identity
 
-  val identityActions = List(Identity(Team.Red), Identity(Team.Blue))
+  private val identityActions = List(Identity(Team.Red), Identity(Team.Blue))
 
   sealed trait MovementAction extends GameAction:
     def piece: GamePiece
     def finalPosition(
         gameState: GameState
     ): Option[gameState.Position] // todo: I think we could do better
+
+    def delta: Positions.Movement
 
     final def finalPositionPrint(
         gameState: GameState
@@ -154,15 +156,14 @@ object GameAction:
         afterMovement   <- currentPosition + direction
       } yield afterMovement
 
+    def delta: Positions.Movement = direction.asMovement
+
     def isLegal(
         gameState: GameState
     ): Boolean =
       gameState.turnOfTeam == actionForTeam &&
         teamCanMove(gameState) &&
-        (finalPosition(gameState) match {
-          case None           => false
-          case Some(position) => gameState.piecesFromPosition.get(position).fold(true)(piece.canTake)
-        })
+        finalPosition(gameState).exists(gameState.piecesFromPosition.get(_).fold(true)(piece.canTake))
   end GamePieceMoves1
 
   val oneMovements: List[GamePieceMoves1] = for {
@@ -177,6 +178,8 @@ object GameAction:
   ) extends MovementAction:
     val firstDirection: Direction  = firstPath._1
     val secondDirection: Direction = firstPath._2
+
+    def delta: Positions.Movement = firstDirection.andThen(secondDirection)
 
     private val allPaths: List[(Direction, Direction)] = firstPath +: alternativePaths
     private val allFirstDirections: List[Direction]    = allPaths.map(_._1)
@@ -235,13 +238,13 @@ object GameAction:
     if piece.movement >= 2
   } yield GamePieceMoves2(piece, firstPath, alternativePaths)
 
-  val allMovements: List[MovementAction] = oneMovements ++ twoMovements
+  private val allMovements: List[MovementAction] = oneMovements ++ twoMovements
 
-  /** [[allMovements]] grouped by piece, computed once. Several hot-path lookups (piece-specific mobility/threat
-    * counts, called from [[GamePiece.pieceTakeScore]], [[GamePiece.piecesTakenScore]] and eval heuristics) only ever
-    * care about one piece's own moves; scanning and filtering the full ~128-entry [[allMovements]] list for that on
-    * every call, at every node of a search tree, is pure waste when this index turns it into an O(1) lookup into a
-    * list of only that piece's own handful of moves.
+  /** [[allMovements]] grouped by piece, computed once. Several hot-path lookups (piece-specific mobility/threat counts,
+    * called from [[GamePiece.pieceTakeScore]], [[GamePiece.piecesTakenScore]] and eval heuristics) only ever care about
+    * one piece's own moves; scanning and filtering the full ~128-entry [[allMovements]] list for that on every call, at
+    * every node of a search tree, is pure waste when this index turns it into an O(1) lookup into a list of only that
+    * piece's own handful of moves.
     */
   val movementsByPiece: Map[GamePiece, List[MovementAction]] = allMovements.groupBy(_.piece)
 
@@ -276,10 +279,7 @@ object GameAction:
       newGameState(gameState)(placePiece1(placePiece2(gameState.pieces)))
     }
 
-    def isLegal(
-        gameState: GameState
-    ): Boolean =
-      gameState.pieceIsAlive(piece1) || gameState.pieceIsAlive(piece2)
+    def isLegal(gameState: GameState): Boolean = gameState.pieceIsAlive(piece1) || gameState.pieceIsAlive(piece2)
 
     def ownLegality: Either[OwnLegalityException, this.type] = List(
       illegalPiece(piece1),
@@ -417,9 +417,6 @@ object GameAction:
     identityActions ++ allMovements ++ allPermutations ++ allRotations ++ lastRowBonusActions
   val blueActions: List[GameAction] = allActions.filter(_.actionForTeam == Team.Blue)
   val redActions: List[GameAction]  = allActions.filter(_.actionForTeam == Team.Red)
-
-  def blowUpForOwnLegalityReason(): List[GameAction] =
-    allActions.map(_.ownLegality.toTry).map(_.get)
 
   def randomAction(
       gameState: GameState

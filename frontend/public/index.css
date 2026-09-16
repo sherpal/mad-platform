@@ -18,8 +18,11 @@ mwc-icon {
   font-family: "Material Icons";
 }
 
+html,
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 fieldset {
@@ -29,12 +32,132 @@ fieldset {
 
 .with-border {
   border: 1px solid black;
+  position: relative;
 }
 
 .game-state-table {
   border-collapse: collapse;
   border-spacing: 0;
+  margin: 10px auto;
+  max-width: 100%;
+}
+
+.game-state-table td,
+.game-state-table th {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-state-table img {
+  display: block;
+}
+
+.game-state-table .drop-target-highlight {
+  -moz-box-shadow: inset 0 0 0 3px rgba(0, 170, 0, 0.8);
+  -webkit-box-shadow: inset 0 0 0 3px rgba(0, 170, 0, 0.8);
+  box-shadow: inset 0 0 0 3px rgba(0, 170, 0, 0.8);
+}
+
+/* While dragging, once hovering a spot that resolves to exactly one action, this marks every cell (board square or
+   exile slot) that action would actually move a piece to/from - not just the one under the pointer. */
+.hover-move-preview {
+  background-color: rgba(255, 140, 0, 0.4);
+}
+
+/* A small preview of a piece OTHER than the one being dragged, showing where a permutation/rotation/bonus would
+   actually send it, displaced from center so it reads as a preview rather than the real occupant of the cell. */
+.move-preview-ghost {
+  position: absolute;
+  top: 8%;
+  left: 8%;
+  width: 70%;
+  height: 70%;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 10;
+  filter: drop-shadow(0 0 2px white);
+}
+
+/* The piece actually sitting here fades out while a move-preview-ghost shows what's about to land on top of it,
+   so it's clear which image is "there now" versus "about to arrive". */
+.dimmed-occupant .piece-image {
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.pending-bonus-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #fff3cd;
+  border: 1px solid #e0a800;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 10px 10px;
+}
+
+.pending-bonus-skip {
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.exile-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
   margin: 10px;
+}
+
+.exile-tray-label {
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+.exile-tray .exile-cell {
+  display: inline-flex;
+  background-color: #eee;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: 0.85;
+}
+
+.action-choice-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.action-choice-popup {
+  position: fixed;
+  z-index: 1001;
+  transform: translate(-50%, 8px);
+  background: white;
+  border: 1px solid black;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.action-choice-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.action-choice-item:hover {
+  background: #f0f0f0;
 }
 
 .game-state-table th {
@@ -88,10 +211,42 @@ fieldset {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .Content:first-child {
   width: fit-content;
+}
+
+/* .Content centers its children rather than stretching them, so each top-level view needs its own definite width -
+   otherwise it (and any 100%-wide control inside it, like a select) just shrinks to fit its widest descendant
+   instead of actually responding to the viewport. */
+.Home,
+.AIPreGameView,
+.AINewGameView,
+.AILoadGameView {
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+}
+
+/* A "label: control" row, used by the game-setup and load-game forms - wraps instead of overflowing once the
+   label and control no longer fit side by side. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+ui5-select,
+ui5-file-uploader {
+  max-width: 100%;
 }
 
 .pretty-print-action mwc-icon {
@@ -101,4 +256,86 @@ fieldset {
 
 .possible-actions mwc-list-item {
   height: 28px;
+}
+
+@media (max-width: 720px) {
+  .Content {
+    padding: 0 12px;
+    box-sizing: border-box;
+  }
+
+  /* The bar's brand text and the current-route label are nice-to-have context, not essential - drop them first so
+     the home icon, favicon and username (the parts users actually need) always have room to breathe. */
+  .app-bar-brand,
+  .app-bar-route {
+    display: none;
+  }
+
+  .app-bar-username {
+    display: inline-block;
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-row > * {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .settings-row ui5-select,
+  .settings-row ui5-file-uploader {
+    width: 100%;
+  }
+
+  .game-view {
+    padding: 8px !important;
+  }
+
+  .game-main-row {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .game-board-column {
+    padding: 8px !important;
+    width: 100%;
+  }
+
+  .possible-actions-panel {
+    min-width: 0 !important;
+  }
+
+  .possible-actions-panel ui5-list {
+    max-height: 240px !important;
+  }
+
+  /* Only shrink the board to fit small screens here - on desktop it keeps its natural, pixel-perfect square cells. */
+  .game-state-table {
+    table-layout: fixed;
+    width: min(94vw, 420px);
+  }
+
+  .game-state-table img {
+    width: 100% !important;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  .game-state-table .row-index,
+  .game-state-table thead th:first-child {
+    width: 22px;
+  }
+
+  .exile-tray img {
+    width: 44px !important;
+    height: 44px !important;
+  }
 }

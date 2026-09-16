@@ -15,7 +15,9 @@ object DisplayPossibleActions:
       maybeAICompletion: Option[Signal[Int]],
       maybeHoveredPieceSignal: Signal[Option[GamePiece]]
   ): HtmlElement = div(
+    className := "possible-actions-panel",
     minWidth <-- gameStateSignal.map(_.ended).map(if _ then "auto" else "400px"),
+    maxWidth := "100%",
     children <-- gameStateSignal.map(gameState =>
       if gameState.ended then List()
       else if gameState.turnOfTeam != team then

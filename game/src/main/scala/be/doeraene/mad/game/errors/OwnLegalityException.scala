@@ -42,7 +42,7 @@ object OwnLegalityException:
     Option.unless(piece1.team == piece2.team)(NotOnSameTeam(piece1, piece2))
     
   def notOpposites(piece1: GamePiece, piece2: GamePiece): Option[OwnLegalityException] =
-    Option.unless(GamePiece.oppositePieces.get(piece1) == Some(piece2))(NotOpposites(piece1, piece2))
+    Option.unless(GamePiece.oppositePieces.get(piece1).contains(piece2))(NotOpposites(piece1, piece2))
     
   def notRotationPool(pieces: Set[GamePiece]): Option[OwnLegalityException] =
     Option.unless(GamePiece.rotationPools contains pieces)(NotRotationPool(pieces))

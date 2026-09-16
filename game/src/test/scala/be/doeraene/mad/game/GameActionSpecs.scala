@@ -7,8 +7,8 @@ import errors.OwnLegalityException
 
 final class GameActionSpecs extends munit.FunSuite:
 
-  val boundaries = GameBoundaries.originalSixByFour
-  val topLeft    = boundaries.topLeft
+  val boundaries: GameBoundaries   = GameBoundaries.originalSixByFour
+  val topLeft: boundaries.Position = boundaries.topLeft
 
   test("thereShouldBeNoOwnLegalityViolation") {
     assertEquals(
@@ -66,6 +66,17 @@ final class GameActionSpecs extends munit.FunSuite:
     assert(!nextGameState.pieceIsAlive(blue121))
   }
 
+  test("For a given piece, all movement actions have different final position") {
+    for {
+      piece <- GamePiece.pieces
+    } {
+      val actions = GameAction.movementsByPiece(piece)
+      val deltas  = actions.map(_.delta)
+
+      assertEquals(deltas.distinct, deltas)
+    }
+  }
+
   test("Going right on the last row enables shift bonus") {
     try {
       val gameState = GameState(boundaries)(Map(red112 -> boundaries.topLeft), 11, 1, false)
@@ -88,54 +99,82 @@ final class GameActionSpecs extends munit.FunSuite:
   test("Identity is not allowed on first turn without the first turn rule") {
     val gameState6x4 = GameState.initial6By4GameState(withInitialSpecialRule = false)
     assert(!GameAction.Identity(Team.Red).isLegal(gameState6x4), "Identity was not supposed to be legal!")
-    assert(!GameAction.Identity(Team.Blue).isLegal(gameState6x4.allValidActions.head.act(gameState6x4)), "Identity was not supposed to be legal!")
+    assert(
+      !GameAction.Identity(Team.Blue).isLegal(gameState6x4.allValidActions.head.act(gameState6x4)),
+      "Identity was not supposed to be legal!"
+    )
     val gameState5x5 = GameState.initial5By5GameState(withInitialSpecialRule = false)
     assert(!GameAction.Identity(Team.Red).isLegal(gameState5x5), "Identity was not supposed to be legal!")
-    assert(!GameAction.Identity(Team.Blue).isLegal(gameState5x5.allValidActions.head.act(gameState5x5)), "Identity was not supposed to be legal!")
+    assert(
+      !GameAction.Identity(Team.Blue).isLegal(gameState5x5.allValidActions.head.act(gameState5x5)),
+      "Identity was not supposed to be legal!"
+    )
   }
 
   test("Identity is allowed on first turn with the first turn rule") {
     val gameState6x4 = GameState.initial6By4GameState(withInitialSpecialRule = true)
     assert(GameAction.Identity(Team.Red).isLegal(gameState6x4), "Identity was supposed to be legal!")
-    assert(GameAction.Identity(Team.Blue).isLegal(gameState6x4.allValidActions.head.act(gameState6x4)), "Identity was supposed to be legal!")
+    assert(
+      GameAction.Identity(Team.Blue).isLegal(gameState6x4.allValidActions.head.act(gameState6x4)),
+      "Identity was supposed to be legal!"
+    )
     val gameState5x5 = GameState.initial5By5GameState(withInitialSpecialRule = true)
     assert(GameAction.Identity(Team.Red).isLegal(gameState5x5), "Identity was supposed to be legal!")
-    assert(GameAction.Identity(Team.Blue).isLegal(gameState5x5.allValidActions.head.act(gameState5x5)), "Identity was supposed to be legal!")
+    assert(
+      GameAction.Identity(Team.Blue).isLegal(gameState5x5.allValidActions.head.act(gameState5x5)),
+      "Identity was supposed to be legal!"
+    )
   }
 
   test("In an Aztec diamond game, piece 212 can go from (1,1) to (2,0) when (2,1) is empty") {
     val boundaries = GameBoundaries.aztecDiamondBoundaries
-    val gameState = GameState(boundaries)(Map(
-      GamePiece.blue111 -> boundaries.Position(0, 2).get,
-      GamePiece.blue212 -> boundaries.Position(1, 1).get,
-      GamePiece.red111 -> boundaries.Position(6, 2).get
-    ), 4, 0, true)
+    val gameState = GameState(boundaries)(
+      Map(
+        GamePiece.blue111 -> boundaries.Position(0, 2).get,
+        GamePiece.blue212 -> boundaries.Position(1, 1).get,
+        GamePiece.red111  -> boundaries.Position(6, 2).get
+      ),
+      4,
+      0,
+      true
+    )
 
-    val legalTwoMovementActionsFor212 = GameAction.twoMovements.filter(_.piece == GamePiece.blue212).filter(_.isLegal(gameState))
+    val legalTwoMovementActionsFor212 =
+      GameAction.twoMovements.filter(_.piece == GamePiece.blue212).filter(_.isLegal(gameState))
     val targetPosition = boundaries.Position(2, 0).get
 
     assert(
-      legalTwoMovementActionsFor212.exists(action => action(gameState).pieces.get(GamePiece.blue212) == Some(targetPosition)),
-      s"No valid actions found to go to ${targetPosition.toChessNotation}, found legal actions were ${legalTwoMovementActionsFor212.map(_.prettyPrint(gameState)).mkString(", ")}."
+      legalTwoMovementActionsFor212.exists(action =>
+        action(gameState).pieces.get(GamePiece.blue212).contains(targetPosition)
+      ),
+      s"No valid actions found to go to ${targetPosition.toChessNotation}, found legal actions were ${legalTwoMovementActionsFor212
+          .map(_.prettyPrint(gameState))
+          .mkString(", ")}."
     )
   }
 
-  test("In an Aztec diamond game, piece 212 can use a bonus action if it is in (4,1), 121 is alive and (5,1) is empty") {
+  test(
+    "In an Aztec diamond game, piece 212 can use a bonus action if it is in (4,1), 121 is alive and (5,1) is empty"
+  ) {
     val boundaries = GameBoundaries.aztecDiamondBoundaries
-    val gameState = GameState(boundaries)(Map(
-      GamePiece.blue111 -> boundaries.Position(0, 2).get,
-      GamePiece.blue212 -> boundaries.Position(4, 1).get,
-      GamePiece.blue121 -> boundaries.Position(3, 1).get,
-      GamePiece.red111 -> boundaries.Position(6, 2).get
-    ), 4, 0, true)
+    val gameState = GameState(boundaries)(
+      Map(
+        GamePiece.blue111 -> boundaries.Position(0, 2).get,
+        GamePiece.blue212 -> boundaries.Position(4, 1).get,
+        GamePiece.blue121 -> boundaries.Position(3, 1).get,
+        GamePiece.red111  -> boundaries.Position(6, 2).get
+      ),
+      4,
+      0,
+      true
+    )
 
     val thereIsALegalBonusActionForBlue212 = gameState.allValidActions.exists {
       case LastRowBonus(movement1, shiftAction) if movement1.piece == GamePiece.blue212 => true
-      case _ => false
+      case _                                                                            => false
     }
 
     assert(thereIsALegalBonusActionForBlue212)
   }
-
 
 end GameActionSpecs

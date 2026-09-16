@@ -60,9 +60,11 @@ object GameView {
           maybeSelectedPieceVar.updater[Option[GamePiece]] { (maybeCurrentlySelected, clickedOn) =>
             clickedOn.filterNot(maybeCurrentlySelected.contains)
           },
+        className  := "game-main-row",
         display    := "flex",
         alignItems := "start",
         div(
+          className      := "game-board-column",
           display        := "flex",
           justifyContent := "center",
           flexDirection  := "column",
@@ -82,7 +84,8 @@ object GameView {
             playerTeam,
             maybeHoveredPieceVar.writer,
             pieceClickEventBus.writer,
-            maybeSelectedPieceVar.signal
+            maybeSelectedPieceVar.signal,
+            playerChosesActionWriter
           ),
           PlayerFrame(playerName, playerTeam, playerIsPlaying, playerThinkingTimes, gameHasEndedSignal)
         ),

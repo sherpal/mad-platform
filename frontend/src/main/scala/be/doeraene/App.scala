@@ -34,18 +34,33 @@ object App:
 
     def app2(username: String) = div(
       Bar(
-        _.slots.startContent := img(src := devProdPath("/favicon.png"), widthAttr := 30),
+        className := "app-bar",
+        _.slots.startContent := img(
+          className := "app-bar-favicon",
+          src        := devProdPath("/favicon.png"),
+          widthAttr  := 30
+        ),
         _.slots.startContent := Icon(
           _.name := IconName.home,
           onClick.mapTo(()) --> moveToPath(entry),
           cursor := "pointer",
           color  := "white"
         ),
-        _.slots.startContent := span("Mad Platform", cursor := "pointer", onClick.mapTo(()) --> moveToPath(entry)),
-        _.slots.endContent   := span(username),
+        _.slots.startContent := span(
+          className := "app-bar-brand",
+          "Mad Platform",
+          cursor := "pointer",
+          onClick.mapTo(()) --> moveToPath(entry)
+        ),
+        _.slots.endContent := span(className := "app-bar-username", username),
         _.slots.endContent <-- {
           def choice(text: String) =
-            span(Icon(_.name := IconName.`map-fill`, color := "white"), text, cursor := "default")
+            span(
+              className := "app-bar-route",
+              Icon(_.name := IconName.`map-fill`, color := "white"),
+              text,
+              cursor := "default"
+            )
           Routes
             .firstOf(
               Route(entry, () => choice("Home")),

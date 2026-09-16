@@ -69,14 +69,14 @@ object AINewGameView {
     )
 
     div(
+      className := "AINewGameView",
       Title.h1("Challenge Blue Madness!"),
       p(
-        display    := "flex",
-        alignItems := "center",
+        className := "settings-row",
         "Select your game mode: ",
         selectGameMode
       ),
-      p(display := "flex", alignItems := "center", "Unrestricted moves on the first turn:", switchInitialSpecialRule),
+      p(className := "settings-row", "Unrestricted moves on the first turn:", switchInitialSpecialRule),
       p(
         startGameBus.events.sample(chosenGameType.signal, unrestrictedMoveOnFirstTurnVar.signal.map(!_)) --> {
           case (gameType: GameBoundaries.GameType, specialRule: Boolean) =>

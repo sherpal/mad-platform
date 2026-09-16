@@ -8,7 +8,7 @@ import be.doeraene.webcomponents.ui5.{Link => _, *}
 import be.doeraene.frontendutils.PrimaryButton
 import urldsl.language.PathSegment
 import urldsl.language.dummyErrorImpl.endOfSegments
-import be.doeraene.webcomponents.ui5.configkeys.IconName
+import be.doeraene.webcomponents.ui5.configkeys.{IconName, WrappingType}
 
 object Home:
 
@@ -26,7 +26,8 @@ object Home:
     )
 
     div(
-      Title.h1(s"Welcome to mad, $username!"),
+      className := "Home",
+      Title.h1(_.wrappingType := WrappingType.Normal, s"Welcome to mad, $username!"),
       UList(
         menuRow(span("Play Against the Computer"), Icon(_.name := IconName.laptop), againstAI),
         marginBottom := "30px"

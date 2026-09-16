@@ -93,8 +93,7 @@ object AILoadGameView {
             inContext(el => onSubmit.preventDefault.mapTo(()) --> submitBus.writer),
             noAdvancedSettingsResponses --> moveToTheGame,
             fieldSet(
-              display    := "flex",
-              alignItems := "center",
+              className := "settings-row",
               label("Select a saved game", paddingRight := "10px"),
               ChoseFileButton(
                 "Choose Mad file",
@@ -103,8 +102,7 @@ object AILoadGameView {
               )
             ),
             fieldSet(
-              display    := "flex",
-              alignItems := "center",
+              className := "settings-row",
               label("Select your colour", paddingRight := "10px"), {
                 val valueAndSelected: Option[Team] => Mod[HtmlElement] = (value: Option[Team]) =>
                   List(

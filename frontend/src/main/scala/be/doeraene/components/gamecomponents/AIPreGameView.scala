@@ -34,6 +34,7 @@ object AIPreGameView:
       PrimaryButton(Val("Load Game"), Val(false), moveToPath(AILoadGameView.here), maybeIcon = Some(IconName.upload))
 
     div(
+      className := "AIPreGameView",
       h1("Challenge Blue Madness!"),
       h2(newGame),
       h2(loadGame)

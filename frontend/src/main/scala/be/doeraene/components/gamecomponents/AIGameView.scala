@@ -27,15 +27,15 @@ object AIGameView:
 
     val aiProgress = Var(0)
 
-    val playerChosesNextGameActionBus: EventBus[GameAction] = new EventBus
-    val aiChosesNextGameActionBus: EventBus[GameState]      = new EventBus
+    val playerChoosesNextGameActionBus: EventBus[GameAction] = new EventBus
+    val aiChoosesNextGameActionBus: EventBus[GameState]      = new EventBus
 
     val startTime = LocalDateTime.now
 
     val allActionsEvents = EventStream
       .merge(
-        playerChosesNextGameActionBus.events,
-        aiChosesNextGameActionBus.events
+        playerChoosesNextGameActionBus.events,
+        aiChoosesNextGameActionBus.events
           .withCurrentValueOf(turnAhead.signal)
           .map((gs, t) => (gs, t, aFunction(gs)))
           .flatMapSwitch { (gs, t, a) =>
@@ -65,20 +65,9 @@ object AIGameView:
     val aiThinkingTimes     = playersThinkingInfoSignal.map(_.totalForTeam(playerTeam.otherTeam))
 
     div(
-      div(
-        paddingTop := "20px",
-        "Level (Turns ahead for the AI): ",
-        select(
-          controlled(
-            value <-- turnAhead.signal.map(_.toString),
-            onChange.mapToValue --> turnAhead.writer.contramap[String](_.toInt)
-          ),
-          (1 to 5).toList.map(level => option(value := level.toString, level.toString))
-        )
-      ),
       GameView(
         playerTeam,
-        playerChosesNextGameActionBus.writer,
+        playerChoosesNextGameActionBus.writer,
         allActionsEvents,
         initialGameState,
         Some(aiProgress.signal),
@@ -88,9 +77,21 @@ object AIGameView:
         playerThinkingTimes,
         aiThinkingTimes
       ),
+      div(
+        paddingTop.px    := 20,
+        paddingBottom.px := 10,
+        "Level (Turns ahead for the AI): ",
+        select(
+          controlled(
+            value <-- turnAhead.signal.map(_.toString),
+            onChange.mapToValue --> turnAhead.writer.contramap[String](_.toInt)
+          ),
+          (1 to 5).toList.map(level => option(value := level.toString, level.toString))
+        )
+      ),
       onMountBind(ctx =>
         gameStateSignal --> ((gs: GameState) =>
-          if !gs.ended && gs.turnOfTeam != playerTeam then aiChosesNextGameActionBus.writer.onNext(gs)
+          if !gs.ended && gs.turnOfTeam != playerTeam then aiChoosesNextGameActionBus.writer.onNext(gs)
         )
       )
     )

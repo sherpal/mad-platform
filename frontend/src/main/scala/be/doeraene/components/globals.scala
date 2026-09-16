@@ -3,7 +3,8 @@ package be.doeraene.components
 import be.doeraene.cli.CustomGameStateParser
 import be.doeraene.components.router.Router
 import be.doeraene.facades.jszip
-import be.doeraene.frontendutils.PrimaryButton
+import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
+import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
 import be.doeraene.models.GameHistory as GameHistoryModel
@@ -34,7 +35,7 @@ def linkModifiers = List(
   color  := Constants.mainTheme
 )
 
-def downloadRulesComponent = PrimaryButton(
+def downloadRulesComponent = SecondaryButton(
   Val("Download rules"),
   Val(false),
   Observer { _ =>

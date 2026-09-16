@@ -2,14 +2,13 @@ import { defineConfig } from 'vite'
 
 export default defineConfig(({}) => {
 
-  const base = "/mad-the-game/"
+  const base = "/mad-the-game"
 
   return {
     publicDir: './public',
     plugins: [],
     server: {
-      port: 3000,
-      open: base
+      port: 3000
     },
     base: base,
     build: {

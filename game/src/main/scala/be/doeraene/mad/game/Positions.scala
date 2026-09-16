@@ -41,7 +41,7 @@ object Positions {
       def distanceTo(that: Position): Int           = math.abs(position._1 - that._1) + math.abs(position._2 - that._2)
       def euclideanDistanceTo(that: Position): Double = math.hypot(position._1 - that._1, position._2 - that._2)
       def asColumnAndRow: (String, Int) =
-        (alphabet(position._2).toString, (1 to (lastRow + 1)).toList.reverse.apply(position._1))
+        (alphabet(position._2).toString, (1 to ((lastRow: Int) + 1)).toList.reverse.apply(position._1))
       def prettyPrint: String = asColumnAndRow.toString
       def toChessNotation: String =
         val (col, row) = asColumnAndRow
@@ -63,14 +63,14 @@ object Positions {
     blue122 -> (1, 1),
     blue211 -> (1, 2),
     blue112 -> (1, 3),
-    red121 -> (4, 0),
-    red122 -> (4, 1),
-    red211 -> (4, 2),
-    red112 -> (4, 3),
-    red221 -> (5, 0),
-    red111 -> (5, 1),
-    red222 -> (5, 2),
-    red212 -> (5, 3)
+    red121  -> (4, 0),
+    red122  -> (4, 1),
+    red211  -> (4, 2),
+    red112  -> (4, 3),
+    red221  -> (5, 0),
+    red111  -> (5, 1),
+    red222  -> (5, 2),
+    red212  -> (5, 3)
   )
 
   opaque type Direction = (0 | 1 | -1, 0 | 1 | -1)
@@ -80,16 +80,25 @@ object Positions {
   val bottom: Direction = (1, 0)
 
   extension (dir: Direction)
-    def +(that: Direction): (Int, Int) = (dir._1 + that._1, dir._2 + that._2)
+    def +(that: Direction): (Int, Int) = (dir.x ++ that.x, dir.y ++ that.y)
 
-    def x: 0 | 1 | -1 = dir._1
-    def y: 0 | 1 | -1 = dir._2
+    def x: -1 | 0 | 1 = dir._1
+    def y: -1 | 0 | 1 = dir._2
+
+    def andThen(that: Direction): Movement = (dir.x ++ that.x, dir.y ++ that.y)
+    inline def asMovement: Movement        = dir
 
   val directions: List[Direction] = List(left, right, top, bottom)
-  val all2LengthPaths: List[(Direction, Direction)] = (for {
+  val all2LengthPaths: List[(Direction, Direction)] = for {
     d1 <- directions
     d2 <- directions
-    if d1._1 != -d2._1 || d1._2 != -d2._2
-  } yield (d1, d2)).toList
+    if d1.x != -d2.x || d1.y != -d2.y
+  } yield (d1, d2)
+
+  opaque type Movement = (-2 | -1 | 0 | 1 | 2, -2 | -1 | 0 | 1 | 2)
+
+  extension (x1: -1 | 0 | 1) {
+    inline def ++(x2: -1 | 0 | 1): -2 | -1 | 0 | 1 | 2 = ((x1: Int) + (x2: Int)).asInstanceOf
+  }
 
 }
