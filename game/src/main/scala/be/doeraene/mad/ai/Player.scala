@@ -38,7 +38,7 @@ object Player {
   def randomMadPlayer: MadPlayer =
     Player(
       "Random",
-      (gameState: GameState) => scala.util.Random.shuffle(gameState.allValidActions).head
+      (gameState: GameState) => scala.util.Random.shuffle(gameState.allValidActions.toVector).head
     )
 
   /** More general version of the minimax mad player, where the [[TreeExplorer]] can each time depend on the current
@@ -91,14 +91,14 @@ object Player {
     )
 
   /** [[TreeExplorer]] wrapping [[ClaudeEvaluator]]. It doesn't need to depend on the current [[GameState]] (unlike
-    * jPaul's, which picks a different [[PieceEvaluator]] depending on the piece count), since the phase-scaling is
-    * done inside the evaluator itself.
+    * jPaul's, which picks a different [[PieceEvaluator]] depending on the piece count), since the phase-scaling is done
+    * inside the evaluator itself.
     */
   def claudeTheoryTreeExplorer: TreeExplorer.MadTreeExplorer =
     TreeExplorer.MadGameStateTreeExplorer(ClaudeEvaluator.evaluate)
 
-  /** Returns a minimax [[MadPlayer]] from [[ClaudeEvaluator]]: a material scale built from the (attack, defence)
-    * combat tier rather than the corvette/frigate/destroyer/cruiser naming order, a recall-aware correction for
+  /** Returns a minimax [[MadPlayer]] from [[ClaudeEvaluator]]: a material scale built from the (attack, defence) combat
+    * tier rather than the corvette/frigate/destroyer/cruiser naming order, a recall-aware correction for
     * exiled-but-recallable pieces, a heavily-weighted 111 safety term, a phase-scaled 222 caution term, and a small
     * centre-control term. See [[ClaudeEvaluator]] for the full reasoning.
     */
@@ -114,9 +114,9 @@ object Player {
       _ => TreeExplorer.MadGameStateTreeExplorer(ClaudeEvaluator.evaluate(weights))
     )
 
-  /** Returns a minimax [[MadPlayer]] from [[TacticalEvaluator]]: exchange-aware threat detection over every ship
-    * (not just 111 and 222), tempo-awareness at the leaf, a swap-based model of what recalling an exiled ship buys,
-    * and safe-escape counting for the corvette. See [[TacticalEvaluator]] for the full reasoning.
+  /** Returns a minimax [[MadPlayer]] from [[TacticalEvaluator]]: exchange-aware threat detection over every ship (not
+    * just 111 and 222), tempo-awareness at the leaf, a swap-based model of what recalling an exiled ship buys, and
+    * safe-escape counting for the corvette. See [[TacticalEvaluator]] for the full reasoning.
     */
   def tacticalPlayer(minimaxDepth: Int): MadPlayer =
     gameStateDependentMinimaxMadPlayer(minimaxDepth, _ => tacticalTreeExplorer)
@@ -124,8 +124,8 @@ object Player {
   /** [[TreeExplorer]] wrapping [[TacticalEvaluator]] at its default weights - the entry point for callers that drive
     * the search themselves rather than through a [[MadPlayer]], such as the web worker.
     *
-    * A `val`, unlike [[claudeTheoryTreeExplorer]]: [[TacticalEvaluator.evaluate]] precomputes a set of tables from
-    * the weights it is given, and rebuilding those per call would throw away the point of having them.
+    * A `val`, unlike [[claudeTheoryTreeExplorer]]: [[TacticalEvaluator.evaluate]] precomputes a set of tables from the
+    * weights it is given, and rebuilding those per call would throw away the point of having them.
     */
   val tacticalTreeExplorer: TreeExplorer.MadTreeExplorer =
     TreeExplorer.MadGameStateTreeExplorer(TacticalEvaluator.evaluate(TacticalWeights.default))

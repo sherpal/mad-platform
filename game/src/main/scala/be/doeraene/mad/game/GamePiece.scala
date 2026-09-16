@@ -1,6 +1,7 @@
 package be.doeraene.mad.game
 
 import GamePiece.*
+import be.doeraene.perf.NatArray
 
 /** A [[GamePiece]] is a pawn on the game. There are 16 in total (8 per team), characterised by a [[Movement]], an
   * [[Attack]] and a [[Defence]].
@@ -16,7 +17,10 @@ final case class GamePiece(movement: Movement, attack: Attack, defence: Defence,
 
   /** Returns the number of opponent pieces this piece cann take, given this [[GameState]] */
   def pieceTakeScore(gameState: GameState): Double =
-    GameAction.movementsByPiece.getOrElse(this, Nil).count(_.doesSomeoneDie(gameState)).toDouble
+    GameAction.movementsByPiece
+      .getOrElse(this, NatArray.empty[GameAction.MovementAction])
+      .count(_.doesSomeoneDie(gameState))
+      .toDouble
 
   /** Returns the number of opponent pieces can take this piece, given this [[GameState]].
     *
@@ -27,9 +31,10 @@ final case class GamePiece(movement: Movement, attack: Attack, defence: Defence,
     */
   def piecesTakenScore(gameState: GameState): Double = gameState.pieces.get(this) match {
     case Some(myPosition) =>
-      gameState.pieces.keys.iterator
+      NatArray
+        .from(gameState.pieces.keys)
         .filter(_.team != team)
-        .flatMap(GameAction.movementsByPiece.getOrElse(_, Nil))
+        .flatMap(GameAction.movementsByPiece.getOrElse(_, NatArray.empty[GameAction.MovementAction]))
         .count(_.finalPosition(gameState).contains(myPosition))
         .toDouble
     case None => Double.MinValue
@@ -166,7 +171,7 @@ object GamePiece:
     red222  -> red111
   )
 
-  val rotationPools: List[Set[GamePiece]] = List(
+  val rotationPools: NatArray[Set[GamePiece]] = NatArray(
     Set(blue112, blue121, blue211),
     Set(blue122, blue212, blue221),
     Set(red112, red121, red211),

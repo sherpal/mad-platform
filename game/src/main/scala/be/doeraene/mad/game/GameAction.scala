@@ -4,6 +4,7 @@ import be.doeraene.mad.game.errors.OwnLegalityException
 import be.doeraene.mad.game.errors.OwnLegalityException.*
 import Positions.{Column, Direction, Position, Row}
 import be.doeraene.mad.game.GameAction.{GamePieceMoves1, GamePieceMoves2}
+import be.doeraene.perf.NatArray
 
 import scala.util.Random
 
@@ -84,7 +85,7 @@ object GameAction:
     def willPieceMove(gamePiece: GamePiece): Boolean         = false
   end Identity
 
-  private val identityActions = List(Identity(Team.Red), Identity(Team.Blue))
+  private val identityActions = NatArray(Identity(Team.Red), Identity(Team.Blue))
 
   sealed trait MovementAction extends GameAction:
     def piece: GamePiece
@@ -166,23 +167,23 @@ object GameAction:
         finalPosition(gameState).exists(gameState.piecesFromPosition.get(_).fold(true)(piece.canTake))
   end GamePieceMoves1
 
-  val oneMovements: List[GamePieceMoves1] = for {
+  val oneMovements: NatArray[GamePieceMoves1] = for {
     direction <- Positions.directions
-    piece     <- GamePiece.pieces
+    piece     <- NatArray.from(GamePiece.pieces)
   } yield GamePieceMoves1(piece, direction)
 
   case class GamePieceMoves2(
       piece: GamePiece,
       firstPath: (Direction, Direction),
-      alternativePaths: List[(Direction, Direction)]
+      alternativePaths: NatArray[(Direction, Direction)]
   ) extends MovementAction:
     val firstDirection: Direction  = firstPath._1
     val secondDirection: Direction = firstPath._2
 
     def delta: Positions.Movement = firstDirection.andThen(secondDirection)
 
-    private val allPaths: List[(Direction, Direction)] = firstPath +: alternativePaths
-    private val allFirstDirections: List[Direction]    = allPaths.map(_._1)
+    private val allPaths: NatArray[(Direction, Direction)] = alternativePaths.prepended(firstPath)
+    private val allFirstDirections: NatArray[Direction]    = allPaths.map(_._1)
 
     def finalPosition(
         gameState: GameState
@@ -229,16 +230,16 @@ object GameAction:
         })
   end GamePieceMoves2
 
-  val twoMovements: List[GamePieceMoves2] = for {
-    targetAndPaths <- Positions.all2LengthPaths.groupBy(_ + _).toList
+  val twoMovements: NatArray[GamePieceMoves2] = for {
+    targetAndPaths <- NatArray.from(Positions.all2LengthPaths.groupBy(_ + _))
     (_, paths)       = targetAndPaths
     firstPath        = paths.head
     alternativePaths = paths.tail
-    piece <- GamePiece.pieces
+    piece <- NatArray.from(GamePiece.pieces)
     if piece.movement >= 2
   } yield GamePieceMoves2(piece, firstPath, alternativePaths)
 
-  private val allMovements: List[MovementAction] = oneMovements ++ twoMovements
+  private val allMovements: NatArray[MovementAction] = oneMovements ++ twoMovements
 
   /** [[allMovements]] grouped by piece, computed once. Several hot-path lookups (piece-specific mobility/threat counts,
     * called from [[GamePiece.pieceTakeScore]], [[GamePiece.piecesTakenScore]] and eval heuristics) only ever care about
@@ -246,10 +247,11 @@ object GameAction:
     * every node of a search tree, is pure waste when this index turns it into an O(1) lookup into a list of only that
     * piece's own handful of moves.
     */
-  val movementsByPiece: Map[GamePiece, List[MovementAction]] = allMovements.groupBy(_.piece)
+  val movementsByPiece: Map[GamePiece, NatArray[MovementAction]] =
+    allMovements.toVector.groupBy(_.piece).map((piece, actions) => piece -> NatArray.from(actions))
 
   sealed trait PieceShiftingAction extends GameAction:
-    def involvedPieces: List[GamePiece]
+    def involvedPieces: Vector[GamePiece]
 
     final def willPieceMove(gamePiece: GamePiece): Boolean = involvedPieces.contains(gamePiece)
 
@@ -259,7 +261,7 @@ object GameAction:
     ): String =
       s"Permutation: ${piece1.prettyPrint} <-> ${piece2.prettyPrint}"
 
-    val involvedPieces: List[GamePiece] = List(piece1, piece2)
+    val involvedPieces: Vector[GamePiece] = Vector(piece1, piece2)
 
     def act(
         gameState: GameState
@@ -296,11 +298,11 @@ object GameAction:
     ): Boolean = false
   end Permutation
 
-  val allPermutations: List[Permutation] = (for {
+  val allPermutations: NatArray[Permutation] = NatArray.from(for {
     piece1 <- GamePiece.pieces
     if piece1.attack == GamePiece.attack1 // only doing for attack = 1 pieces, otherwise we have twice the same actions.
     piece2 <- GamePiece.oppositePieces.get(piece1)
-  } yield Permutation(piece1, piece2)).toList
+  } yield Permutation(piece1, piece2))
 
   case class Rotation(piece1: GamePiece, piece2: GamePiece, piece3: GamePiece) extends PieceShiftingAction:
     def prettyPrint(
@@ -308,7 +310,7 @@ object GameAction:
     ): String =
       s"Rotation: ${piece1.prettyPrint} -> ${piece2.prettyPrint} -> ${piece3.prettyPrint}"
 
-    val involvedPieces: List[GamePiece] = List(piece1, piece2, piece3)
+    val involvedPieces: Vector[GamePiece] = Vector(piece1, piece2, piece3)
 
     def act(
         gameState: GameState
@@ -355,9 +357,12 @@ object GameAction:
     ): Boolean = false
   end Rotation
 
-  val allRotations: List[Rotation] = GamePiece.rotationPools.map(_.toList).flatMap {
-    case piece1 :: piece2 :: piece3 :: Nil => List(Rotation(piece1, piece2, piece3), Rotation(piece1, piece3, piece2))
-    case _                                 => throw new RuntimeException("Yewks")
+  val allRotations: NatArray[Rotation] = GamePiece.rotationPools.map(NatArray.from).flatMap { arr =>
+    if arr.length != 3 then throw RuntimeException("yewh")
+    val piece1 = arr(0)
+    val piece2 = arr(1)
+    val piece3 = arr(2)
+    NatArray(Rotation(piece1, piece2, piece3), Rotation(piece1, piece3, piece2))
   }
 
   case class LastRowBonus(movement1: GamePieceMoves1, shiftAction: PieceShiftingAction) extends GameAction:
@@ -406,17 +411,17 @@ object GameAction:
       movement1.willPieceMove(gamePiece) || shiftAction.willPieceMove(gamePiece)
   end LastRowBonus
 
-  private val lastRowBonusActions: List[LastRowBonus] = for {
+  private val lastRowBonusActions: NatArray[LastRowBonus] = for {
     movement    <- oneMovements
     shiftAction <- allPermutations ++ allRotations
     if movement.actionForTeam == shiftAction.actionForTeam
     if shiftAction.involvedPieces.contains(movement.piece)
   } yield LastRowBonus(movement, shiftAction)
 
-  val allActions: List[GameAction] =
-    identityActions ++ allMovements ++ allPermutations ++ allRotations ++ lastRowBonusActions
-  val blueActions: List[GameAction] = allActions.filter(_.actionForTeam == Team.Blue)
-  val redActions: List[GameAction]  = allActions.filter(_.actionForTeam == Team.Red)
+  val allActions: NatArray[GameAction] =
+    identityActions.map(a => a: GameAction) ++ allMovements ++ allPermutations ++ allRotations ++ lastRowBonusActions
+  val blueActions: NatArray[GameAction] = allActions.filter(_.actionForTeam == Team.Blue)
+  val redActions: NatArray[GameAction]  = allActions.filter(_.actionForTeam == Team.Red)
 
   def randomAction(
       gameState: GameState

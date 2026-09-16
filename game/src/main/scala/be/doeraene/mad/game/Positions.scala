@@ -3,6 +3,7 @@ package be.doeraene.mad.game
 import scala.compiletime.ops.int.*
 import scala.util.Try
 import GamePiece.*
+import be.doeraene.perf.NatArray
 
 object Positions {
 
@@ -88,8 +89,8 @@ object Positions {
     def andThen(that: Direction): Movement = (dir.x ++ that.x, dir.y ++ that.y)
     inline def asMovement: Movement        = dir
 
-  val directions: List[Direction] = List(left, right, top, bottom)
-  val all2LengthPaths: List[(Direction, Direction)] = for {
+  val directions: NatArray[Direction] = NatArray(left, right, top, bottom)
+  val all2LengthPaths: NatArray[(Direction, Direction)] = for {
     d1 <- directions
     d2 <- directions
     if d1.x != -d2.x || d1.y != -d2.y

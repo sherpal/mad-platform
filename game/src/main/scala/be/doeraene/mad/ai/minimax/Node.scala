@@ -1,36 +1,41 @@
 package be.doeraene.mad.ai.minimax
 
 import be.doeraene.mad.game.{GameAction, GamePiece, GameState, PieceEvaluator, Team}
-import be.doeraene.perf.OptimizedCol
+import be.doeraene.perf.{NatArray, ParColIfPossible}
+
+import scala.reflect.ClassTag
 
 trait Node[T, Action, Turn]:
 
   def t: T
 
-  @inline final def turn(using treeExplorer: TreeExplorer[T, Action, Turn]): Turn = treeExplorer.turnOf(t)
+  inline final def turn(using treeExplorer: TreeExplorer[T, Action, Turn]): Turn = treeExplorer.turnOf(t)
 
-  @inline final def actions(using treeExplorer: TreeExplorer[T, Action, Turn]): List[Action] = treeExplorer.actions(t)
+  inline final def actions(using treeExplorer: TreeExplorer[T, Action, Turn]): NatArray[Action] =
+    treeExplorer.actions(t)
 
   /** Computes the score of the node, seen from the eyes of the specified turn. */
-  @inline final def score(forTurn: Turn)(using treeExplorer: TreeExplorer[T, Action, Turn]): Double =
+  inline final def score(forTurn: Turn)(using treeExplorer: TreeExplorer[T, Action, Turn]): Double =
     treeExplorer.score(t, forTurn)
 
-  @inline final def exactScore(forTurn: Turn)(using treeExplorer: TreeExplorer[T, Action, Turn]): Double =
+  inline final def exactScore(forTurn: Turn)(using treeExplorer: TreeExplorer[T, Action, Turn]): Double =
     treeExplorer.exactScore(t, forTurn)
 
-  @inline final def exactSolutionIsKnown(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
+  inline final def exactSolutionIsKnown(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
     treeExplorer.exactSolutionIsKnown(t)
 
-  @inline final def isTerminalNode(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
+  inline final def isTerminalNode(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
     treeExplorer.isTerminalNode(t)
 
   /** Returns a `List` rather than a `Map` on purpose: [[scoreForAction]]'s alpha-beta loop drains this via repeated
     * `.head`/`.tail`, which is O(1) per step on a `List` but O(log n) per step on an immutable `Map` (`tail` has to
-    * rebuild the underlying hash trie), making a full drain O(n log n) instead of O(n) - paid at every node, every
-    * ply, of the whole search tree. Nothing here needs key lookup, only sequential draining, so `List` is strictly
-    * the right type, not just a faster one.
+    * rebuild the underlying hash trie), making a full drain O(n log n) instead of O(n) - paid at every node, every ply,
+    * of the whole search tree. Nothing here needs key lookup, only sequential draining, so `List` is strictly the right
+    * type, not just a faster one.
     */
-  final def children(using treeExplorer: TreeExplorer[T, Action, Turn]): List[(Action, Node[T, Action, Turn])] =
+  final def children(using treeExplorer: TreeExplorer[T, Action, Turn])(using
+      ClassTag[Action]
+  ): NatArray[(Action, Node[T, Action, Turn])] =
     val parent = t
 
     /* Both of the following serve the alpha-beta loop in `scoreForAction`, which drains this list left to right and
@@ -46,7 +51,7 @@ trait Node[T, Action, Turn]:
      * one of them, cutoff or not. */
     val (capturing, quiet) = actions.partition(treeExplorer.actionBonus(_, parent) > 0.0)
 
-    (capturing ::: quiet).map { action =>
+    (capturing ++ quiet).map { action =>
       action -> new Node[T, Action, Turn] {
         lazy val t: T = treeExplorer.actionIsLikeFunction1.asFunction1(action).apply(parent)
       }
@@ -54,6 +59,8 @@ trait Node[T, Action, Turn]:
 
   def scoreForAction(action: Action, childAfterAction: Node[T, Action, Turn], turn: Turn, maxDepth: Int)(using
       treeExplorer: TreeExplorer[T, Action, Turn]
+  )(using
+      ClassTag[Action]
   ): Double = {
     def alphaBeta(node: Node[T, Action, Turn], currentDepth: Int, alpha: Double, beta: Double): Double =
       if node.isTerminalNode then node.exactScore(turn) * (currentDepth + 1)
@@ -98,14 +105,15 @@ trait Node[T, Action, Turn]:
 
   def actionsAndScores(turn: Turn, maxDepth: Int = 5)(using
       treeExplorer: TreeExplorer[T, Action, Turn]
-  ): Vector[(Action, Double)] =
-    OptimizedCol
-      .fromCol(children)
-      .map((action, child) => (action, scoreForAction(action, child, turn, maxDepth)))
-      .toVector
+  )(using
+      ClassTag[Action]
+  ): NatArray[(Action, Double)] =
+    children.par.map((action, child) => (action, scoreForAction(action, child, turn, maxDepth))).toNatArray
 
   def bestAction(turn: Turn, maxDepth: Int = 5, verbose: Boolean = false)(using
       treeExplorer: TreeExplorer[T, Action, Turn]
+  )(using
+      ClassTag[Action]
   ): Action = {
     val actionScores = actionsAndScores(turn, maxDepth)
       .sortBy((action, _) => -treeExplorer.actionBonus(action, t))

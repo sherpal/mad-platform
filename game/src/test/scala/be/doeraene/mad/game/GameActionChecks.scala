@@ -3,16 +3,15 @@ package be.doeraene.mad.game
 import org.scalacheck.*
 import org.scalacheck.Prop.*
 import GameAction.*
-import Positions.*
 
 import scala.reflect.ClassTag
 
 object GameActionChecks extends Properties("Game Action checks"):
 
-  val permutations = Gen.oneOf(allPermutations)
-  val rotations    = Gen.oneOf(allRotations)
-  val movements1   = Gen.oneOf(oneMovements)
-  val movements2   = Gen.oneOf(twoMovements)
+  val permutations = Gen.oneOf(allPermutations.toVector)
+  val rotations    = Gen.oneOf(allRotations.toVector)
+  val movements1   = Gen.oneOf(oneMovements.toVector)
+  val movements2   = Gen.oneOf(twoMovements.toVector)
 
   def randomPiecesPosition(
       boundaries: GameBoundaries
@@ -30,8 +29,8 @@ object GameActionChecks extends Properties("Game Action checks"):
     withInitialSpecialRule <- Gen.oneOf(true, false)
   } yield GameState(boundaries)(map, turnNumber, turnsSinceLastDied, withInitialSpecialRule)
 
-  val sixByFourGameStateGen  = gameStateGen(GameBoundaries.originalSixByFour)
-  val fiveByFiveGameStateGen = gameStateGen(GameBoundaries.defaultFiveByFive)
+  val sixByFourGameStateGen: Gen[GameState]  = gameStateGen(GameBoundaries.originalSixByFour)
+  val fiveByFiveGameStateGen: Gen[GameState] = gameStateGen(GameBoundaries.defaultFiveByFive)
 
   val anyGameState: Gen[GameState] = Gen.oneOf(sixByFourGameStateGen, fiveByFiveGameStateGen)
 
@@ -39,14 +38,14 @@ object GameActionChecks extends Properties("Game Action checks"):
     gameState <- anyGameState
     validActions = gameState.allValidActions
     if validActions.nonEmpty
-    action <- Gen.oneOf(validActions)
+    action <- Gen.oneOf(validActions.toVector)
   } yield (gameState, action)
 
   def gameStateWithActionType[ActionType <: GameAction](using
       classTag: ClassTag[ActionType]
   ): Gen[(GameState, ActionType)] = for {
     gameState <- anyGameState
-    validActions = gameState.allValidActions.collect { case action: ActionType => action }
+    validActions = gameState.allValidActions.toVector.collect { case action: ActionType => action }
     if validActions.nonEmpty
     action <- Gen.oneOf(validActions)
   } yield (gameState, action)
@@ -84,7 +83,7 @@ object GameActionChecks extends Properties("Game Action checks"):
           s"""
            |Origin game state (${gameState.pieceCount} alive):
            |${gameState.prettyPrint}
-           |Action is: ${movement}, piece is at position ${gameState.pieces.get(movement.piece)}
+           |Action is: $movement, piece is at position ${gameState.pieces.get(movement.piece)}
            |Resulting game state (${nextGameState.pieceCount} alive):
            |${nextGameState.prettyPrint}
            |Does someone die? ${movement.doesSomeoneDie(gameState)}

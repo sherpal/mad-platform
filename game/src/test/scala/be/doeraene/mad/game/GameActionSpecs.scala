@@ -12,8 +12,8 @@ final class GameActionSpecs extends munit.FunSuite:
 
   test("thereShouldBeNoOwnLegalityViolation") {
     assertEquals(
-      List.empty[OwnLegalityException],
-      GameAction.allActions.map(_.ownLegality).collect { case Left(error) => error }
+      Vector.empty[OwnLegalityException],
+      GameAction.allActions.map(_.ownLegality).toVector.collect { case Left(error) => error }
     )
   }
 
@@ -70,7 +70,7 @@ final class GameActionSpecs extends munit.FunSuite:
     for {
       piece <- GamePiece.pieces
     } {
-      val actions = GameAction.movementsByPiece(piece)
+      val actions = GameAction.movementsByPiece(piece).toVector
       val deltas  = actions.map(_.delta)
 
       assertEquals(deltas.distinct, deltas)

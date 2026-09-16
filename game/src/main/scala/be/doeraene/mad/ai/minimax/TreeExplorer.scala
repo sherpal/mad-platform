@@ -1,9 +1,10 @@
 package be.doeraene.mad.ai.minimax
 
 import be.doeraene.mad.game.{GameAction, GamePiece, GameState, Team}
+import be.doeraene.perf.NatArray
 
 trait TreeExplorer[T, Action, Turn]:
-  def actions(t: T): List[Action]
+  def actions(t: T): NatArray[Action]
   def score(t: T, turn: Turn): Double
 
   /** Returns the exact score. This assumes that it was known in the first place. That is, either because
@@ -62,8 +63,8 @@ object TreeExplorer:
       evaluator: Node.Evaluator[GameState, Team]
   ) extends MadTreeExplorer:
 
-    def actions(t: GameState): List[GameAction] = t.allValidActions
-    def score(t: GameState, turn: Team): Double = evaluator(t, turn)
+    def actions(t: GameState): NatArray[GameAction] = t.allValidActions
+    def score(t: GameState, turn: Team): Double     = evaluator(t, turn)
     def exactScore(t: GameState, turn: Team): Double =
       if t.ended then
         t.maybeWinner match
@@ -76,10 +77,10 @@ object TreeExplorer:
 
     def turnOf(t: GameState): Team = t.turnOfTeam
 
-    /** A node the search must not look past. That is [[GameState.ended]], not just "a corvette has been exiled":
-      * the game also stops dead after 30 turns without an exile, and a search that ignores that keeps counting a
-      * material lead several plies into positions the game will never reach - so the side that is ahead never sees
-      * the draw coming and drifts into it, which is precisely the position it should be breaking open.
+    /** A node the search must not look past. That is [[GameState.ended]], not just "a corvette has been exiled": the
+      * game also stops dead after 30 turns without an exile, and a search that ignores that keeps counting a material
+      * lead several plies into positions the game will never reach - so the side that is ahead never sees the draw
+      * coming and drifts into it, which is precisely the position it should be breaking open.
       */
     def isTerminalNode(t: GameState): Boolean = t.ended
     def actionIsLikeFunction1: Function1Like[GameAction, GameState] =

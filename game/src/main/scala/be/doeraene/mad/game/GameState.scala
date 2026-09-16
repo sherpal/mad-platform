@@ -2,6 +2,7 @@ package be.doeraene.mad.game
 
 import Positions.*
 import GamePiece.*
+import be.doeraene.perf.NatArray
 
 /** Represents the board of the Mad game.
   *
@@ -97,7 +98,7 @@ final class GameState(
   def ended: Boolean = turnsSinceLastPieceDied >= 30 || maybeWinner.isDefined
 
   /** Returns the list of valid [[GameAction]] given this [[GameState]]. */
-  def allValidActions: List[GameAction] = turnOfTeam match {
+  def allValidActions: NatArray[GameAction] = turnOfTeam match {
     case Team.Blue => GameAction.blueActions.filter(_.isLegal(this))
     case Team.Red  => GameAction.redActions.filter(_.isLegal(this))
   }
