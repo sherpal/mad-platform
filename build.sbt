@@ -4,6 +4,8 @@ import sbt.projectMatrix
 import java.nio.charset.StandardCharsets
 import scala.sys.process.Process
 
+import org.scalajs.linker.interface.ESVersion
+
 val commonScalaVersion = "3.8.4"
 version := "1.0.0"
 
@@ -98,6 +100,10 @@ lazy val `web-worker` = project
     scalaVersion                    := commonScalaVersion,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List("org.scala-js" %% "scalajs-dom" % "2.4.0"),
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withESFeatures(_.withESVersion(ESVersion.ES2022).withUseWebAssembly(true))
+    },
     commonSettings
   )
   .dependsOn(`shared-js`)

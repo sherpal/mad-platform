@@ -16,6 +16,12 @@ sealed trait WorkerProtocol:
 
 object WorkerProtocol:
 
+  /** Sent by the worker, outside the regular request/response protocol, as soon as it has
+    * finished loading and is ready to receive its first message. See [[be.doeraene.EntryPoint]]
+    * for why this handshake is needed.
+    */
+  val readySignal: String = "worker-ready"
+
   case class CurrentGameStateWithSelectedAction(
       gameState: GameState,
       gameAction: GameAction,
