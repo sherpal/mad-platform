@@ -82,10 +82,10 @@ object TacticalEvaluator:
     val occupantOf: NatArray[Int] = NatArray.fill(SquareCount)(-1)
 
     /** every square a piece could land on, *ignoring* who stands there - see [[reachableSquares]] */
-    val landingsOf: NatArray[NatArray[Int]] = NatArray.fill(pieceCount)(NatArray.empty[Int])
+    val landingsOf: NatArray[List[Int]] = NatArray.fill(pieceCount)(List.empty[Int])
 
     /** every piece that could land on a square, the reverse index of [[landingsOf]] */
-    val reachersOf: NatArray[NatArray[Int]] = NatArray.fill(SquareCount)(NatArray.empty[Int])
+    val reachersOf: NatArray[List[Int]] = NatArray.fill(SquareCount)(List.empty[Int])
 
     val alive: Array[Int] =
       val builder = Array.newBuilder[Int]
@@ -100,9 +100,9 @@ object TacticalEvaluator:
       builder.result()
 
     alive.foreach { index =>
-      val landings = reachableSquares(gameState, index)
+      val landings = reachableSquares(gameState, index).toList
       landingsOf(index) = landings
-      landings.foreach(square => reachersOf(square) = reachersOf(square).prepended(index))
+      landings.foreach(square => reachersOf(square) = index +: reachersOf(square))
     }
 
     /** Whether `piece` could actually move onto `square` right now: it is empty, or holds an opponent it outguns. */
@@ -125,7 +125,7 @@ object TacticalEvaluator:
       val (row, col) = position.asPair
       row * 8 + col
 
-    movesOf(piece).flatMap {
+    movesOf(piece).flatMapOpt {
       case twoSquares: GamePieceMoves2 =>
         if twoSquares.existsEmptyFirstPosition(gameState) then twoSquares.finalPosition(gameState).map(packed)
         else None

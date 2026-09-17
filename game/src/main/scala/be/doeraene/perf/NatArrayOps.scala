@@ -10,6 +10,11 @@ private[perf] object NatArrayOps {
     inline def flatMapOps[U](f: T => NatArray[U])(using ClassTag[U]): NatArray[U] =
       NatArray.fromArray(arr.toArray.flatMap(f(_).toArray))
 
+    inline def flatMapItOps[U](f: T => IterableOnce[U])(using ClassTag[U]): NatArray[U] =
+      NatArray.fromArray(arr.toArray.flatMap(f))
+
+    inline def foreachOps(f: T => Unit): Unit = arr.toArray.foreach(f)
+
     inline def filterOps(predicate: T => Boolean): NatArray[T] = NatArray.fromArray(arr.toArray.filter(predicate))
 
     inline def zipWithIndexOps: NatArray[(T, Int)] = NatArray.fromArray(arr.toArray.zipWithIndex)
@@ -30,8 +35,12 @@ private[perf] object NatArrayOps {
       (NatArray.fromArray(left), NatArray.fromArray(right))
     }
 
+    /* Concatenated through the platform's own `++`, which knows to build a result array of `U`. Re-typing the
+     * argument with `asInstanceOf[NatArray[U]]` instead was a lie about the runtime array: on the JVM an
+     * `Array[Int]` really is an `int[]`, so widening to a supertype element type - `NatArray[Int] ++ ...` seen as
+     * `NatArray[AnyVal]` - threw a `ClassCastException` rather than boxing. */
     inline def concatOps[U >: T, X <: U](that: NatArray[X])(using ClassTag[U]): NatArray[U] =
-      NatArray.fromArray(arr.toArray ++ that.asInstanceOf[NatArray[U]].toArray)
+      NatArray.fromArray(arr.toArray ++ that.toArray)
 
     inline def tailOps: NatArray[T] = NatArray.fromArray(arr.toArray.slice(1, arr.lengthOps))
 

@@ -27,11 +27,11 @@ trait Node[T, Action, Turn]:
   inline final def isTerminalNode(using treeExplorer: TreeExplorer[T, Action, Turn]): Boolean =
     treeExplorer.isTerminalNode(t)
 
-  /** Returns a `List` rather than a `Map` on purpose: [[scoreForAction]]'s alpha-beta loop drains this via repeated
-    * `.head`/`.tail`, which is O(1) per step on a `List` but O(log n) per step on an immutable `Map` (`tail` has to
-    * rebuild the underlying hash trie), making a full drain O(n log n) instead of O(n) - paid at every node, every ply,
-    * of the whole search tree. Nothing here needs key lookup, only sequential draining, so `List` is strictly the right
-    * type, not just a faster one.
+  /** Returns a flat sequence rather than a `Map` on purpose: [[scoreForAction]]'s alpha-beta loop only ever walks this
+    * left to right, and an immutable `Map` would charge O(log n) per step for that (`tail` has to rebuild the
+    * underlying hash trie), making a full drain O(n log n) instead of O(n) - paid at every node, every ply, of the
+    * whole search tree. Nothing here needs key lookup, only sequential iteration. Note that the loop walks this *by
+    * index*: `tail` on a [[NatArray]] copies, so draining one the way a `List` is drained would be quadratic.
     */
   final def children(using treeExplorer: TreeExplorer[T, Action, Turn])(using
       ClassTag[Action]
@@ -69,32 +69,36 @@ trait Node[T, Action, Turn]:
       else if turn == node.turn then // this is the maximizing player
         var value: Double = Double.MinValue
         var currentAlpha  = alpha
-        var nextNodes     = node.children
+        val nextNodes     = node.children
+        val childCount    = nextNodes.length
+        var index         = 0
         var continue      = true
-        while continue && nextNodes.nonEmpty do
-          val (_, child)    = nextNodes.head
+        while continue && index < childCount do
+          val (_, child)    = nextNodes(index)
           val valueForChild = alphaBeta(child, currentDepth - 1, currentAlpha, beta)
           value = value max valueForChild
           currentAlpha = currentAlpha max value
 
           if currentAlpha >= beta then continue = false
 
-          nextNodes = nextNodes.tail
+          index += 1
         value
       else
         var value: Double = Double.MaxValue
         var currentBeta   = beta
-        var nextNodes     = node.children
+        val nextNodes     = node.children
+        val childCount    = nextNodes.length
+        var index         = 0
         var continue      = true
-        while continue && nextNodes.nonEmpty do
-          val (_, child)    = nextNodes.head
+        while continue && index < childCount do
+          val (_, child)    = nextNodes(index)
           val valueForChild = alphaBeta(child, currentDepth - 1, alpha, currentBeta)
           value = value min valueForChild
           currentBeta = currentBeta min value
 
           if currentBeta <= alpha then continue = false
 
-          nextNodes = nextNodes.tail
+          index += 1
 
         value
 

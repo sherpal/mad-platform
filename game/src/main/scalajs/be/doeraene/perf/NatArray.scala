@@ -13,7 +13,10 @@ object NatArray {
 
   def from[T, CC <: Iterable[T]](col: CC): NatArray[T] = col.toJSArray
 
-  def fill[T](n: Int)(t: => T)(using ClassTag[T]): NatArray[T] = new js.Array[T](n).map(_ => t)
+  def fill[T](n: Int)(t: => T)(using ClassTag[T]): NatArray[T] =
+    val arr = new js.Array[T](n)
+    for j <- 0 until n do arr(j) = t
+    arr
 
   def empty[T]: NatArray[T] = js.Array()
 
@@ -26,16 +29,16 @@ object NatArray {
 
     inline def native: js.Array[T] = arr
 
-    def toVector: Vector[T] = Vector.from(arr)
+    inline def toVector: Vector[T] = Vector.from(arr)
+    inline def toList: List[T]     = List.from(arr)
 
     inline def map[U](f: T => U)(using ClassTag[U]): NatArray[U] = arr.mapOps(f)
 
     inline def flatMap[U](f: T => NatArray[U])(using ClassTag[U]): NatArray[U] = arr.flatMapOps(f)
 
-    inline def foreach(f: T => Unit): Unit = {
-      arr.map(f)
-      ()
-    }
+    inline def flatMapOpt[U](f: T => Option[U])(using ClassTag[U]): NatArray[U] = arr.flatMapItOps(f)
+
+    inline def foreach(f: T => Unit): Unit = arr.foreachOps(f)
 
     inline def filter(predicate: T => Boolean): NatArray[T]     = arr.filterOps(predicate)
     inline def withFilter(predicate: T => Boolean): NatArray[T] = arr.filter(predicate)
@@ -89,6 +92,4 @@ object NatArray {
 
   given [T](using Encoder[T]): Encoder[NatArray[T]] = summon[Encoder[Vector[T]]].contramap(_.toVector)
   given [T](using Decoder[T]): Decoder[NatArray[T]] = summon[Decoder[Vector[T]]].map(Converters.toNatArray)
-
-  given [T](using ClassTag[T]): Conversion[Option[T], NatArray[T]] = _.fold(empty)(apply(_))
 }
