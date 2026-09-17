@@ -112,7 +112,10 @@ trait Node[T, Action, Turn]:
   )(using
       ClassTag[Action]
   ): NatArray[(Action, Double)] =
-    children.par.map((action, child) => (action, scoreForAction(action, child, turn, maxDepth))).toNatArray
+    ParColIfPossible
+      .fromCol(children)
+      .map((action, child) => (action, scoreForAction(action, child, turn, maxDepth)))
+      .toNatArray
 
   def bestAction(turn: Turn, maxDepth: Int = 5, verbose: Boolean = false)(using
       treeExplorer: TreeExplorer[T, Action, Turn]
