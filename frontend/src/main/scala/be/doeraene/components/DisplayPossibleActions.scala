@@ -49,7 +49,7 @@ object DisplayPossibleActions:
               .map(
                 displayOneAction(_, gameState, actionWriter, displayActionWriter, maybeHoveredPieceSignal)
               )
-              .native
+              .toVector
           )
         )
     )

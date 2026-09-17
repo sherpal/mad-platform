@@ -125,7 +125,7 @@ object TacticalEvaluator:
       val (row, col) = position.asPair
       row * 8 + col
 
-    movesOf(piece).flatMapOpt {
+    movesOf(piece).flatMap {
       case twoSquares: GamePieceMoves2 =>
         if twoSquares.existsEmptyFirstPosition(gameState) then twoSquares.finalPosition(gameState).map(packed)
         else None

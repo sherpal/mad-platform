@@ -39,7 +39,7 @@ object MadTranslators:
     CirceDecoder[List[(K, V)]].map(_.toMap)
 
   given actionEncoder: CirceEncoder[GameAction] =
-    CirceEncoder[Int].contramap(GameAction.allActions.indexOf)
+    CirceEncoder[Int].contramap(GameAction.allActions.indexOf(_))
   given actionDecoder: CirceDecoder[GameAction] =
     CirceDecoder[Int].map(GameAction.allActions(_))
 
@@ -71,13 +71,13 @@ object MadTranslators:
       (pieces, turnNumber, turnsSinceLastPieceDied, boundaries, withInitialSpecialRule) =>
         scala.util.Try {
           GameState(boundaries)(
-                pieces
-                  .map((piece, chessNotation) => piece -> boundaries.Position.fromChessNotation(chessNotation).get)
-                  .toMap,
-                turnNumber,
-                turnsSinceLastPieceDied,
-                withInitialSpecialRule
-              )
+            pieces
+              .map((piece, chessNotation) => piece -> boundaries.Position.fromChessNotation(chessNotation).get)
+              .toMap,
+            turnNumber,
+            turnsSinceLastPieceDied,
+            withInitialSpecialRule
+          )
         }
     )
 

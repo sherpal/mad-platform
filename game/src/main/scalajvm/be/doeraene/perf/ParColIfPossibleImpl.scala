@@ -5,9 +5,9 @@ import scala.collection.parallel.immutable.ParVector
 import scala.reflect.ClassTag
 
 private class ParColIfPossibleImpl[T](underlying: ParVector[T]) extends ParColIfPossible[T] {
-  override def toNatArray(using ClassTag[T]): NatArray[T] = NatArray.from(underlying.toVector)
+  override def toNatArray(using ClassTag[T]): NatArray[T] = underlying.toArray
 
-  override def map[U](f: T => U): ParColIfPossible[U] = ParColIfPossibleImpl(underlying.map(f))
+  override def map[U](f: T => U)(using ClassTag[U]): ParColIfPossible[U] = ParColIfPossibleImpl(underlying.map(f))
 }
 
 object ParColIfPossibleImpl {
