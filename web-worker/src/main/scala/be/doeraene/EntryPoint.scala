@@ -34,4 +34,10 @@ object EntryPoint:
           throw t
       }
 
+    // Module workers whose entry module uses top-level `await` (as the WebAssembly-backend
+    // output does, to load the .wasm file) may drop messages sent by the caller before this
+    // point: the browser doesn't start dispatching queued messages until the entry module has
+    // finished evaluating. Signal readiness so the caller knows it's now safe to postMessage.
+    self.postMessage(WorkerProtocol.readySignal)
+
 end EntryPoint
