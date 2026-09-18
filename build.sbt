@@ -4,7 +4,8 @@ import sbt.projectMatrix
 import java.nio.charset.StandardCharsets
 import scala.sys.process.Process
 
-import org.scalajs.linker.interface.ESVersion
+import org.scalajs.linker.interface.{ESVersion, OutputPatterns}
+import org.scalajs.jsenv.nodejs.NodeJSEnv
 
 val commonScalaVersion = "3.8.4"
 version := "1.0.0"
@@ -103,7 +104,16 @@ lazy val `web-worker` = project
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
         .withESFeatures(_.withESVersion(ESVersion.ES2022).withUseWebAssembly(true))
+        // Node (used by `test`/`run`) only recognizes a .js file as an ES module if a
+        // package.json declares "type": "module", which we don't have next to the linker
+        // output. Naming the file .mjs makes Node treat it as ESM unconditionally; browsers
+        // don't care about the extension either way.
+        .withOutputPatterns(OutputPatterns.fromJSFile("%s.mjs"))
     },
+    // `run`/`test` execute the linked output with Node.js. Node's V8 still gates the Wasm
+    // exception-handling feature (exnref) that the WebAssembly backend's runtime relies on
+    // behind this flag on versions before it's unconditionally enabled; requires Node.js 22+.
+    jsEnv := Def.uncached(new NodeJSEnv(NodeJSEnv.Config().withArgs(List("--experimental-wasm-exnref")))),
     commonSettings
   )
   .dependsOn(`shared-js`)
