@@ -28,9 +28,15 @@ object Home:
     div(
       className := "Home",
       Title.h1(_.wrappingType := WrappingType.Normal, s"Welcome to mad, $username!"),
-      UList(
-        menuRow(span("Play Against the Computer"), Icon(_.name := IconName.laptop), againstAI),
-        marginBottom := "30px"
+      div(
+        marginBottom.px := 30,
+        marginTop.px    := 30,
+        PrimaryButton(
+          Val("Play Against the Computer"),
+          Val(false),
+          moveToPath(againstAI),
+          maybeIcon = Some(IconName.laptop)
+        )
       ),
       downloadRulesComponent
     )

@@ -25,7 +25,7 @@ import scala.util.{Failure, Success}
 
 //noinspection TypeAnnotation
 
-def moveToPath(path: PathSegment[Unit, ?]) =
+def moveToPath[T](path: PathSegment[Unit, ?]): Observer[T] =
   Observer { _ =>
     Router.router.moveTo("/" ++ path.createPath())
   }
