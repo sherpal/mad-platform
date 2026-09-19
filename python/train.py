@@ -39,8 +39,11 @@ def parse_args() -> argparse.Namespace:
                         help="softmax temperature applied to the search's move scores")
     parser.add_argument("--value-blend", type=float, default=0.5,
                         help="0 = train the value head on the game result only, 1 = on the search score only")
-    parser.add_argument("--value-scale", type=float, default=3.0,
-                        help="evaluator units that count as a decisive advantage")
+    # Not a free knob: it converts the evaluator's arbitrary units into a predicted result, and getting
+    # it wrong by an order of magnitude saturates every ordinary position to +-1. Run `dataset.py` on a
+    # harvest to have it fitted against the results those games actually reached.
+    parser.add_argument("--value-scale", type=float, default=30.0,
+                        help="evaluator units that count as a decisive advantage (see dataset.py)")
     parser.add_argument("--validation-fraction", type=float, default=0.1)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)

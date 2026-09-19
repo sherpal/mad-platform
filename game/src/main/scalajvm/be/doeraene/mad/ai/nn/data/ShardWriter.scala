@@ -7,7 +7,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 import java.util.zip.GZIPOutputStream
 
 import be.doeraene.mad.ai.nn.{ActionIndex, StateEncoder}
-import be.doeraene.mad.game.GameBoundaries
+import be.doeraene.mad.game.{GameBoundaries, GamePiece}
 
 /** One labelled position, already encoded.
   *
@@ -106,6 +106,7 @@ final class ShardWriter(
        |  "rows": ${boundaries.lastRow},
        |  "cols": ${boundaries.lastCol},
        |  "planeCount": ${StateEncoder.planeCount},
+       |  "piecesPerTeam": ${GamePiece.piecesPerTeam},
        |  "featureLength": $featureLength,
        |  "policySize": $policySize,
        |  "actionFingerprint": ${ActionIndex.orderingFingerprint},

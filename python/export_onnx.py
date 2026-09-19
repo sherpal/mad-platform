@@ -19,7 +19,10 @@ import torch
 
 from model import MadNet, Shape
 
-OPSET = 17
+# 18 rather than 17 because that is what the exporter implements natively; asking for 17 makes it export
+# 18 and then down-convert through the ONNX C API, which is churn for nothing. onnxruntime-web has
+# supported 18 since well before the version this project pins.
+OPSET = 18
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +58,11 @@ def main() -> None:
         dynamic_axes={"board": {0: "batch"}, "policy": {0: "batch"}, "value": {0: "batch"}},
         opset_version=OPSET,
         do_constant_folding=True,
+        # One file, not a .onnx plus a .onnx.data. The exporter splits the weights out by default, which
+        # the browser would have to serve as a second asset and register by hand with onnxruntime-web -
+        # and which is very easy to lose track of when copying "the model" somewhere. At 1.5 MB there is
+        # nothing to gain by splitting.
+        external_data=False,
     )
 
     metadata = {
@@ -87,15 +95,23 @@ def _verify(out: Path, net: MadNet, example: torch.Tensor) -> None:
         return
 
     session = onnxruntime.InferenceSession(str(out), providers=["CPUExecutionProvider"])
-    board = np.random.default_rng(0).random(example.shape, dtype=np.float32)
-    policy, value = session.run(None, {"board": board})
+    rng = np.random.default_rng(0)
 
-    with torch.no_grad():
-        expected_policy, expected_value = net(torch.from_numpy(board))
+    # Several batch sizes, not just the one the model was traced with. Self-play batches leaves by the
+    # dozen, the browser evaluates a handful, and MCTS at a terminal node evaluates one; a batch axis
+    # that silently froze at the example's size would only show up as a crash much later.
+    for batch in (1, 3, example.shape[0], example.shape[0] * 2):
+        board = rng.random((batch, *example.shape[1:]), dtype=np.float32)
+        policy, value = session.run(None, {"board": board})
 
-    np.testing.assert_allclose(policy, expected_policy.numpy(), rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(value, expected_value.numpy(), rtol=1e-4, atol=1e-4)
-    print(f"Round-trip check passed on a batch of {example.shape[0]}")
+        with torch.no_grad():
+            expected_policy, expected_value = net(torch.from_numpy(board))
+
+        np.testing.assert_allclose(policy, expected_policy.numpy(), rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(value, expected_value.numpy(), rtol=1e-4, atol=1e-4)
+
+    assert not list(out.parent.glob(out.name + ".data")), "weights were written outside the .onnx file"
+    print(f"Round-trip check passed at batch sizes 1, 3, {example.shape[0]}, {example.shape[0] * 2}")
 
 
 if __name__ == "__main__":

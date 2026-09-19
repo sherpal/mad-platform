@@ -4,3 +4,6 @@ numpy>=1.26
 torch>=2.5
 onnx>=1.17
 onnxruntime>=1.20
+# torch.onnx.export routes through the dynamo exporter from 2.9 on, which needs this at runtime even
+# though nothing here imports it.
+onnxscript>=0.1

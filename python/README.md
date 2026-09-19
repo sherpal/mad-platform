@@ -37,10 +37,13 @@ final network. Inspect what came out before training on it:
 cd python && .venv/bin/python dataset.py ../data/nn/bootstrap
 ```
 
-Then train and export:
+That inspection ends with a fitted `--value-scale`, and it is worth reading rather than skipping. The
+scale converts the evaluator's arbitrary units into a predicted result; the units are not meaningful on
+their own, and a first guess at this was wrong by a factor of ten, which quietly saturated every
+ordinary position to +-1. Pass what it suggests:
 
 ```bash
-.venv/bin/python train.py ../data/nn/bootstrap --out ../data/nn/model
+.venv/bin/python train.py ../data/nn/bootstrap --out ../data/nn/model --value-scale 56
 .venv/bin/python export_onnx.py ../data/nn/model/model.pt
 ```
 
