@@ -3,7 +3,7 @@ package be.doeraene.components
 import be.doeraene.components.*
 import be.doeraene.components.gamecomponents.PlayerFrame
 import be.doeraene.mad.game.*
-import be.doeraene.models.{PlayerName, GameHistory as GameHistoryModel}
+import be.doeraene.models.{GameHistory as GameHistoryModel, PlayerName, WithTime}
 import be.doeraene.webcomponents.ui5.{Bar, Button, Dialog}
 import com.raquo.laminar.api.L.*
 
@@ -16,14 +16,13 @@ object GameView {
   def apply(
       playerTeam: Team,
       playerChosesActionWriter: Observer[GameAction],
-      allActionsSignal: Signal[List[GameAction]],
+      allActionsSignal: Signal[List[WithTime[GameAction]]],
       initialGameState: GameState,
       maybeAICompletion: Option[Signal[Int]],
       playerName: PlayerName,
       opponentPlayerName: PlayerName,
-      startTime: LocalDateTime,
-      playerThinkingTimes: Signal[FiniteDuration],
-      opponentThinkingTimes: Signal[FiniteDuration],
+      playerThinkingTimes: Signal[WithTime.time.Time],
+      opponentThinkingTimes: Signal[WithTime.time.Time],
       modifiers: Modifier[HtmlElement]*
   ): HtmlElement = {
 
@@ -33,10 +32,10 @@ object GameView {
     }
 
     val displayGameActionBus: EventBus[Option[GameAction]] = new EventBus
-    val gameStateSignal                                    = allActionsSignal.map(initialGameState.applyAllActions)
-    val gameHasEndedSignal                                 = gameStateSignal.map(_.ended)
+    val gameStateSignal    = allActionsSignal.map(_.map(_.value)).map(initialGameState.applyAllActions)
+    val gameHasEndedSignal = gameStateSignal.map(_.ended)
 
-    val gameHistorySignal = allActionsSignal.map(actions => GameHistoryModel(initialGameState, actions))
+    val gameHistorySignal = allActionsSignal.map(actions => GameHistoryModel(initialGameState, actions.toVector))
     val playerIsPlaying   = gameStateSignal.map(_.turnOfTeam == playerTeam)
 
     val playerNameLabel = "player-name"
@@ -99,7 +98,13 @@ object GameView {
             (maybeHoveredPiece, maybeSelectedPiece) => maybeSelectedPiece.orElse(maybeHoveredPiece)
           }
         ),
-        GameEndedDisplay(playerTeam, gameStateSignal.changes, initialGameState, allActionsSignal, isAgainstAI),
+        GameEndedDisplay(
+          playerTeam,
+          gameStateSignal.changes,
+          initialGameState,
+          allActionsSignal.map(_.map(_.value)),
+          isAgainstAI
+        ),
         allActionsSignal.changes.delay(0).mapTo(None) --> displayGameActionBus.writer
       ),
       GameHistory(

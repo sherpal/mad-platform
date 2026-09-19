@@ -16,7 +16,7 @@ object EntryPoint:
 
         message match {
           case m: WorkerProtocol.CurrentGameStateWithSelectedAction =>
-            println(s"Starting handling action... [value of a is ${m.aValue}]")
+            println(s"Starting handling action...")
             val score = be.doeraene.madworker.handleCurrentGSWithAction(
               m.gameState,
               m.gameAction,

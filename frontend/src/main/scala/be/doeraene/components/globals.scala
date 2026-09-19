@@ -7,7 +7,7 @@ import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
-import be.doeraene.models.GameHistory as GameHistoryModel
+import be.doeraene.models.{GameHistory as GameHistoryModel, WithTime}
 import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 import com.raquo.laminar.api.L.*
@@ -87,11 +87,24 @@ def extractGameHistory(files: jszip.Files)(using ExecutionContext): Future[GameH
     .filter(_.name.startsWith("game-state"))
     .minBy(_.name.drop("game-state-".length).dropRight(4).toInt)
 
+  def decodeActions(actionsText: String) = io.circe.parser
+    .decode[Vector[WithTime[GameAction]]](actionsText)
+    .toTry
+    .recoverWith { case throwable: Throwable =>
+      io.circe.parser
+        .decode[Vector[GameAction]](actionsText)
+        .toTry
+        .map(_.map(WithTime.start))
+        .recoverWith { case _ =>
+          Failure(throwable) // reporting first error if both fails
+        }
+    }
+
   for {
     initialGameStateEncoded <- initialGameStateFile.text
     initialGameState        <- Future.fromTry(CustomGameStateParser.parse(initialGameStateEncoded).toTry)
     actionsText             <- files.file("actions.json").text
-    actions                 <- Future.fromTry(io.circe.parser.decode[List[GameAction]](actionsText).toTry)
+    actions                 <- Future.fromTry(decodeActions(actionsText))
   } yield GameHistoryModel(initialGameState, actions)
 }
 

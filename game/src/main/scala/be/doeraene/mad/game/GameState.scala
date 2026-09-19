@@ -135,7 +135,7 @@ final class GameState(
     (centerOfMassOf(bluePieces), centerOfMassOf(redPieces))
   }
 
-  def applyAllActions(actions: List[GameAction]): GameState =
+  def applyAllActions(actions: Iterable[GameAction]): GameState =
     actions.foldLeft(this)((gs, a) => a(gs))
 
   lazy val (redScore, blueScore) = {

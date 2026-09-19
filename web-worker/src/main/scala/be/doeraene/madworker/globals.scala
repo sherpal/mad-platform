@@ -19,8 +19,6 @@ def handleCurrentGSWithAction(
     node.scoreForAction(action, Node.MadGameStateNode(action(state)), state.turnOfTeam, turnAhead)
   }
 
-  println(s"Using tactical tree explorer")
-
   handle(gameState)
 
 }

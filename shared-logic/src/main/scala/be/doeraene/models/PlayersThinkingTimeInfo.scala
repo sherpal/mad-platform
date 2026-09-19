@@ -1,17 +1,14 @@
 package be.doeraene.models
 
-import java.time.LocalDateTime
-import scala.concurrent.duration.*
 import be.doeraene.mad.game.Team
+import be.doeraene.models.WithTime.time.Time
 
 final case class PlayersThinkingTimeInfo(
-  redPlayerTotal: FiniteDuration,
-  bluePlayerTotal: FiniteDuration,
-  lastUpdate: LocalDateTime
+    redPlayerTotal: Time,
+    bluePlayerTotal: Time,
+    lastUpdate: Time
 ):
-  def totalForTeam(team: Team): FiniteDuration = if team == Team.Red then redPlayerTotal else bluePlayerTotal
+  def totalForTeam(team: Team): Time = if team == Team.Red then redPlayerTotal else bluePlayerTotal
 
 object PlayersThinkingTimeInfo:
-  def initial(time: LocalDateTime): PlayersThinkingTimeInfo = PlayersThinkingTimeInfo(
-    0.second, 0.second, time
-  )
+  def initial: PlayersThinkingTimeInfo = PlayersThinkingTimeInfo(Time.zero, Time.zero, Time.zero)

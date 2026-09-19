@@ -4,6 +4,7 @@ import be.doeraene.mad.game.*
 import io.circe.{Codec, Decoder, Encoder}
 
 import java.time.*
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.*
 import scala.util.{Failure, Success, Try}
 
@@ -20,7 +21,7 @@ final case class AllGameInfo(
   def shape: (Int, Int) = gameHistory.shape
 
   inline transparent def addAction(action: GameAction, now: LocalDateTime): AllGameInfo =
-    val newHistory          = gameHistory.copy(actions = gameHistory.actions :+ action)
+    val newHistory          = gameHistory.add(action, startTime, now)
     val newGameState        = newHistory.currentGameState
     val justPlayed          = newGameState.turnOfTeam.otherTeam
     val timeSinceLastUpdate = lastUpdateTime.until(now, temporal.ChronoUnit.SECONDS).seconds
@@ -52,16 +53,16 @@ object AllGameInfo:
   case class PlayerInfo(name: PlayerName.HumanPlayerName, totalThinkingTime: FiniteDuration) derives Codec:
     def addTime(duration: FiniteDuration): PlayerInfo = copy(totalThinkingTime = totalThinkingTime + duration)
 
-  def initial(
-      initialGameState: GameState,
-      initialActions: List[GameAction],
-      redPlayerName: PlayerName.HumanPlayerName,
-      bluePlayerName: PlayerName.HumanPlayerName,
-      startTime: LocalDateTime
-  ): AllGameInfo = AllGameInfo(
-    PlayerInfo(redPlayerName, 0.second),
-    PlayerInfo(bluePlayerName, 0.second),
-    GameHistory(initialGameState, initialActions),
-    startTime,
-    startTime
-  )
+//  def initial(
+//      initialGameState: GameState,
+//      initialActions: List[GameAction],
+//      redPlayerName: PlayerName.HumanPlayerName,
+//      bluePlayerName: PlayerName.HumanPlayerName,
+//      startTime: LocalDateTime
+//  ): AllGameInfo = AllGameInfo(
+//    PlayerInfo(redPlayerName, 0.second),
+//    PlayerInfo(bluePlayerName, 0.second),
+//    GameHistory(initialGameState, initialActions),
+//    startTime,
+//    startTime
+//  )

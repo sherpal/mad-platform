@@ -1,17 +1,12 @@
 package be.doeraene.components.gamecomponents
 
-import java.time.*
-
 import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
 import be.doeraene.communication.AIApi.*
-import be.doeraene.models.{GameHistory => GameHistoryModel, PlayerName, PlayersThinkingTimeInfo}
+import be.doeraene.models.{GameHistory as GameHistoryModel, PlayerName, WithTime}
 
-import scala.concurrent.duration.*
 import com.raquo.laminar.api.L.*
 
-import org.scalajs.dom
-import scala.scalajs.js
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object AIGameView:
@@ -30,7 +25,7 @@ object AIGameView:
     val playerChoosesNextGameActionBus: EventBus[GameAction] = new EventBus
     val aiChoosesNextGameActionBus: EventBus[GameState]      = new EventBus
 
-    val startTime = LocalDateTime.now
+    val startTime = WithTime.time.Time.now() - gameHistory.playersThinkingTimeInfo.lastUpdate
 
     val allActionsEvents = EventStream
       .merge(
@@ -42,24 +37,14 @@ object AIGameView:
             EventStream.fromFuture(askNextAction(t, a, gs, progress => aiProgress.update(_ => progress)))
           }
       )
+      .map(WithTime(_, startTime.until(WithTime.time.Time.now())))
       .scanLeft(gameHistory.actions)(_ :+ _)
 
-    val gameStateSignal = allActionsEvents.map(initialGameState.applyAllActions)
+    val gameStateSignal = allActionsEvents.map(_.map(_.value)).map(initialGameState.applyAllActions)
 
     val playersThinkingInfoSignal =
-      gameStateSignal.changes.scanLeft(PlayersThinkingTimeInfo.initial(LocalDateTime.now)) {
-        case (PlayersThinkingTimeInfo(redPlayerTotal, bluePlayerTotal, lastUpdate), gameState) =>
-          val now                = LocalDateTime.now
-          val additionalDuration = lastUpdate.until(now, temporal.ChronoUnit.SECONDS).seconds
-
-          println((redPlayerTotal, bluePlayerTotal, gameState.turnOfTeam, lastUpdate, now, additionalDuration))
-
-          PlayersThinkingTimeInfo(
-            redPlayerTotal + (if gameState.turnOfTeam == Team.Blue then additionalDuration else 0.second),
-            bluePlayerTotal + (if gameState.turnOfTeam == Team.Red then additionalDuration else 0.second),
-            now
-          )
-      }
+      allActionsEvents
+        .map(GameHistoryModel(gameHistory.initialGameState, _).playersThinkingTimeInfo)
 
     val playerThinkingTimes = playersThinkingInfoSignal.map(_.totalForTeam(playerTeam))
     val aiThinkingTimes     = playersThinkingInfoSignal.map(_.totalForTeam(playerTeam.otherTeam))
@@ -68,12 +53,11 @@ object AIGameView:
       GameView(
         playerTeam,
         playerChoosesNextGameActionBus.writer,
-        allActionsEvents,
+        allActionsEvents.map(_.toList),
         initialGameState,
         Some(aiProgress.signal),
         playerName,
         PlayerName.AIPlayerName,
-        startTime,
         playerThinkingTimes,
         aiThinkingTimes
       ),

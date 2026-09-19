@@ -29,4 +29,7 @@ jobs:
       - name: Build game
         run: sbt buildFrontend
 
-on: push
+on:
+  push:
+    branches:
+      - '!main'

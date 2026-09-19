@@ -5,7 +5,7 @@ import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.webcomponents.ui5.*
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
-import be.doeraene.models.GameHistory as GameHistoryModel
+import be.doeraene.models.{GameHistory as GameHistoryModel, WithTime}
 import org.scalajs.dom
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 
@@ -24,19 +24,20 @@ object GameHistory:
   def apply(
       boundaries: GameBoundaries,
       initialGameState: GameState,
-      actionsSignal: Signal[List[GameAction]],
+      actionsSignal: Signal[List[WithTime[GameAction]]],
       team: Team,
       isAgainstAI: Boolean
   ): HtmlElement = div(
     marginBottom := "30px",
-    h3("Game History"),
+    Title.h3("Game History"),
     children <-- actionsSignal
+      .map(_.map(_.value))
       .map(GameAction.reconstructGameStates(_, initialGameState).reverse)
       .split(_._1.turnNumber) { case (_, _, statesAndActions) =>
         displayOneGameState(
           boundaries,
           statesAndActions,
-          actionsSignal.map(actions => GameHistoryModel(initialGameState, actions)),
+          actionsSignal.map(actions => GameHistoryModel(initialGameState, actions.toVector)),
           team,
           isAgainstAI
         )
