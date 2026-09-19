@@ -169,7 +169,7 @@ object GameAction:
 
   val oneMovements: NatArray[GamePieceMoves1] = for {
     direction <- Positions.directions
-    piece     <- NatArray.from(GamePiece.pieces)
+    piece     <- NatArray.from(GamePiece.orderedPieces)
   } yield GamePieceMoves1(piece, direction)
 
   case class GamePieceMoves2(
@@ -230,12 +230,21 @@ object GameAction:
         })
   end GamePieceMoves2
 
+  /** The two-step paths grouped by the square they land on, ordered by that target delta.
+    *
+    * `groupBy` alone returns a `Map`, so iterating it leaked hash order into [[twoMovements]] and from there into
+    * [[allActions]]; sorting on the delta makes the order depend only on the (pinned) order of
+    * [[Positions.all2LengthPaths]]. See the note on [[GamePiece.orderedPieces]].
+    */
+  private val paths2ByTarget: Vector[((Int, Int), Vector[(Direction, Direction)])] =
+    Positions.all2LengthPaths.toVector.groupBy(_ + _).toVector.sortBy(_._1)
+
   val twoMovements: NatArray[GamePieceMoves2] = for {
-    targetAndPaths <- NatArray.from(Positions.all2LengthPaths.groupBy(_ + _))
+    targetAndPaths <- NatArray.from(paths2ByTarget)
     (_, paths)       = targetAndPaths
     firstPath        = paths.head
-    alternativePaths = paths.tail
-    piece <- NatArray.from(GamePiece.pieces)
+    alternativePaths = NatArray.from(paths.tail)
+    piece <- NatArray.from(GamePiece.orderedPieces)
     if piece.movement >= 2
   } yield GamePieceMoves2(piece, firstPath, alternativePaths)
 
@@ -299,7 +308,7 @@ object GameAction:
   end Permutation
 
   val allPermutations: NatArray[Permutation] = NatArray.from(for {
-    piece1 <- GamePiece.pieces
+    piece1 <- GamePiece.orderedPieces
     if piece1.attack == GamePiece.attack1 // only doing for attack = 1 pieces, otherwise we have twice the same actions.
     piece2 <- GamePiece.oppositePieces.get(piece1)
   } yield Permutation(piece1, piece2))
@@ -357,11 +366,11 @@ object GameAction:
     ): Boolean = false
   end Rotation
 
-  val allRotations: NatArray[Rotation] = GamePiece.rotationPools.map(NatArray.from).flatMap { arr =>
-    if arr.length != 3 then throw RuntimeException("yewh")
-    val piece1 = arr(0)
-    val piece2 = arr(1)
-    val piece3 = arr(2)
+  val allRotations: NatArray[Rotation] = NatArray.from(GamePiece.orderedRotationPools).flatMap { pool =>
+    if pool.length != 3 then throw RuntimeException("yewh")
+    val piece1 = pool(0)
+    val piece2 = pool(1)
+    val piece3 = pool(2)
     NatArray(Rotation(piece1, piece2, piece3), Rotation(piece1, piece3, piece2))
   }
 
