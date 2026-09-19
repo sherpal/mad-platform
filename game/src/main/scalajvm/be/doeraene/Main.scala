@@ -78,20 +78,24 @@ import scala.util.Random
         case None       => "It's a tie!"
       })
 
-    case GameConfig.MadBenchmark(minimaxDepth, config1, config2, openings, seed, skip) =>
-      val games = benchmark.Benchmark.battery(openings, seed, skip)
-      println(s"Benchmark at depth $minimaxDepth: $config1 vs $config2 over ${games.size} games")
+    case GameConfig.MadBenchmark(minimaxDepth, config1, config2, openings, seed, skip, opponentDepth) =>
+      val games          = benchmark.Benchmark.battery(openings, seed, skip)
+      val depthOfOpponent = opponentDepth.getOrElse(minimaxDepth)
+      println(
+        s"Benchmark: $config1 at depth $minimaxDepth vs $config2 at depth $depthOfOpponent " +
+          s"over ${games.size} games"
+      )
 
       val (report, time) = Player.timeIt(
         benchmark.Benchmark.run(
           config1.player(minimaxDepth),
-          config2.player(minimaxDepth),
+          config2.player(depthOfOpponent),
           games,
           (done, total) => if done % 10 == 0 || done == total then println(s"  $done/$total games played")
         )
       )
 
-      println(report.pretty(config1.toString, config2.toString))
+      println(report.pretty(s"$config1@$minimaxDepth", s"$config2@$depthOfOpponent"))
       println(s"(took ${time.toSeconds}s)")
 
     case GameConfig.TexelTune(openings, gameDepth, passes, opponentConfig) =>

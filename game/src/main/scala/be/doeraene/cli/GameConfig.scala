@@ -31,13 +31,20 @@ object GameConfig:
     *   how many of the 81 distinct positioning-turn openings to play (each is played with both colour assignments,
     *   so the number of games is twice this)
     */
+  /** @param opponentDepth
+    *   depth for `config2`, when it should differ from `config1`'s. Comparing one depth against another
+    *   is the only way to tell a real strength difference from the odd/even effect, where ending a
+    *   search on the opponent's reply rather than on one's own move changes how optimistic the leaf
+    *   evaluation is.
+    */
   case class MadBenchmark(
       minimaxDepth: Int,
       config1: AIConfig,
       config2: AIConfig,
       openings: Int,
       seed: Long,
-      skip: Int
+      skip: Int,
+      opponentDepth: Option[Int] = None
   ) extends GameConfig
 
   /** @param openings
@@ -174,7 +181,8 @@ object GameConfig:
       config2 = io.circe.parser.decode[AIConfig](args(2)).toTry.get,
       openings = Try(args(3).toInt).getOrElse(20),
       seed = Try(args(4).toLong).getOrElse(42L),
-      skip = Try(args(5).toInt).getOrElse(0)
+      skip = Try(args(5).toInt).getOrElse(0),
+      opponentDepth = Try(args(6).toInt).toOption
     )
   }
 
