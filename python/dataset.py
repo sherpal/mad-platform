@@ -25,6 +25,7 @@ class Manifest:
     rows: int
     cols: int
     plane_count: int
+    pieces_per_team: int
     feature_length: int
     policy_size: int
     action_fingerprint: int
@@ -40,6 +41,7 @@ class Manifest:
             rows=raw["rows"],
             cols=raw["cols"],
             plane_count=raw["planeCount"],
+            pieces_per_team=raw["piecesPerTeam"],
             feature_length=raw["featureLength"],
             policy_size=raw["policySize"],
             action_fingerprint=raw["actionFingerprint"],
@@ -122,6 +124,39 @@ def value_targets(harvest: Harvest, blend: float, scale: float) -> np.ndarray:
     return ((1.0 - blend) * harvest.outcome + blend * searched).astype(np.float32)
 
 
+def calibrate_value_scale(harvest: Harvest, terminal_threshold: float = 1e4) -> tuple[float, np.ndarray]:
+    """Finds the `value_scale` that best turns the search's score into a predicted result.
+
+    The scale is not a free knob to guess at: it converts evaluator units into "how likely is this to be
+    won", and it depends on the evaluator, the search depth and the harvest. Getting it wrong by an order
+    of magnitude - which is easy, the units are arbitrary - either saturates every ordinary position to
+    +-1 or squashes a decisive one to nothing, and in both cases the value head learns very little.
+
+    Fitted by scanning for the scale that minimises squared error between `tanh(score / scale)` and the
+    result the game actually reached. Terminal scores are excluded: they are +-3e6 and saturate at any
+    scale, so they say nothing about where the interesting range is.
+
+    Returns the fitted scale and the agreement-by-magnitude table behind it.
+    """
+    non_terminal = np.abs(harvest.root_score) < terminal_threshold
+    scores = harvest.root_score[non_terminal]
+    outcomes = harvest.outcome[non_terminal]
+
+    candidates = np.geomspace(0.5, 500.0, 200)
+    errors = [np.mean((np.tanh(scores / scale) - outcomes) ** 2) for scale in candidates]
+    best = float(candidates[int(np.argmin(errors))])
+
+    decisive = outcomes != 0
+    buckets = []
+    for low, high in [(0, 5), (5, 15), (15, 40), (40, terminal_threshold)]:
+        inside = decisive & (np.abs(scores) >= low) & (np.abs(scores) < high)
+        if inside.sum() > 20:
+            agreement = np.mean(np.sign(outcomes[inside]) == np.sign(scores[inside]))
+            buckets.append((low, high, int(inside.sum()), float(agreement)))
+
+    return best, np.array(buckets, dtype=object)
+
+
 def split(harvest: Harvest, validation_fraction: float) -> tuple[np.ndarray, np.ndarray]:
     """Indices for a training/validation split, cut contiguously rather than at random.
 
@@ -151,12 +186,20 @@ def main() -> None:
     print(f"  root score     min {harvest.root_score.min():.2f}, "
           f"median {np.median(harvest.root_score):.2f}, max {harvest.root_score.max():.2f}")
 
-    occupancy = harvest.features[:, : 2 * 8].sum(axis=(1, 2, 3))
+    # The mover's planes followed by the opponent's; everything after them is a scalar broadcast over
+    # the board rather than a piece.
+    occupancy = harvest.features[:, : 2 * m.pieces_per_team].sum(axis=(1, 2, 3))
     print(f"  pieces/board   min {occupancy.min():.0f}, mean {occupancy.mean():.1f}, max {occupancy.max():.0f}")
 
     targets = policy_targets(harvest, temperature=1.0)
     best_mass = targets.max(axis=1)
     print(f"  policy at T=1  mass on best move: mean {best_mass.mean():.2f}, median {np.median(best_mass):.2f}")
+
+    scale, buckets = calibrate_value_scale(harvest)
+    print(f"\nHow well the search's score predicts the result (non-terminal, decisive positions):")
+    for low, high, count, agreement in buckets:
+        print(f"  |score| in [{low:>3.0f}, {high:>5.0f}): n={count:6d}   correct sign {agreement:.3f}")
+    print(f"\n  suggested --value-scale {scale:.0f}")
 
 
 if __name__ == "__main__":
