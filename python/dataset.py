@@ -32,6 +32,11 @@ class Manifest:
     sample_count: int
     shards: list[dict]
     arrays: dict
+    # "SearchScores" (a supervised harvest: raw minimax scores) or "VisitCounts" (self-play: MCTS visit
+    # counts and a root value already in -1..1). The two carry the same shapes and need completely
+    # different treatment, and nothing downstream could tell them apart by looking at the numbers.
+    # Harvests written before this field existed are all SearchScores.
+    policy_signal: str = "SearchScores"
 
     @staticmethod
     def load(root: Path) -> "Manifest":
@@ -48,6 +53,7 @@ class Manifest:
             sample_count=raw["sampleCount"],
             shards=raw["shards"],
             arrays=raw["arrays"],
+            policy_signal=raw.get("policySignal", "SearchScores"),
         )
 
 
@@ -95,7 +101,26 @@ def load(root: Path) -> Harvest:
 
 
 def policy_targets(harvest: Harvest, temperature: float) -> np.ndarray:
-    """Turns the search's per-move scores into a distribution over the legal moves.
+    """Turns whatever signal the harvest carries into a distribution over the legal moves.
+
+    Self-play records MCTS visit counts, which are already a distribution once normalised - that is the
+    whole point of training on them. Raising them to 1/temperature sharpens or flattens, matching what
+    the search itself did when it sampled a move.
+    """
+    if harvest.manifest.policy_signal == "VisitCounts":
+        counts = np.where(harvest.legal, np.maximum(harvest.scores, 0.0), 0.0)
+        sharpened = counts ** (1.0 / temperature) if temperature != 1.0 else counts
+        totals = sharpened.sum(axis=1, keepdims=True)
+        # A position the search never got to expand has nothing to teach; fall back to uniform over the
+        # legal moves rather than dividing by zero.
+        uniform = harvest.legal / np.maximum(harvest.legal.sum(axis=1, keepdims=True), 1)
+        return np.where(totals > 0, sharpened / np.maximum(totals, 1e-12), uniform).astype(np.float32)
+
+    return _softmax_scores(harvest, temperature)
+
+
+def _softmax_scores(harvest: Harvest, temperature: float) -> np.ndarray:
+    """A supervised harvest's raw minimax scores, softmaxed over the legal moves.
 
     The scores are raw minimax values, so they need shifting before they can be exponentiated: a forced
     win scores in the millions and `exp` of that is an overflow, not a probability. Subtracting each
@@ -119,8 +144,14 @@ def value_targets(harvest: Harvest, blend: float, scale: float) -> np.ndarray:
     where the game was still even. The search's root score is dense and is what we are trying to distil
     in the first place, but it inherits the hand-tuned evaluator's biases. `blend` is how much to trust
     the latter; `scale` is how many evaluator units count as decisive.
+
+    Self-play's root value is already an expected outcome in -1..1, so it needs neither the scale nor the
+    tanh. Squashing it a second time would flatten every opinion the search had.
     """
-    searched = np.tanh(harvest.root_score / scale)
+    if harvest.manifest.policy_signal == "VisitCounts":
+        searched = np.clip(harvest.root_score, -1.0, 1.0)
+    else:
+        searched = np.tanh(harvest.root_score / scale)
     return ((1.0 - blend) * harvest.outcome + blend * searched).astype(np.float32)
 
 
@@ -195,11 +226,19 @@ def main() -> None:
     best_mass = targets.max(axis=1)
     print(f"  policy at T=1  mass on best move: mean {best_mass.mean():.2f}, median {np.median(best_mass):.2f}")
 
-    scale, buckets = calibrate_value_scale(harvest)
-    print(f"\nHow well the search's score predicts the result (non-terminal, decisive positions):")
-    for low, high, count, agreement in buckets:
-        print(f"  |score| in [{low:>3.0f}, {high:>5.0f}): n={count:6d}   correct sign {agreement:.3f}")
-    print(f"\n  suggested --value-scale {scale:.0f}")
+    if m.policy_signal == "VisitCounts":
+        # Self-play's root value is already an expected outcome, so there is no scale to fit and the
+        # bucketing below would just report that every value is between -1 and 1.
+        decisive = harvest.outcome != 0
+        agreement = np.mean(np.sign(harvest.root_score[decisive]) == np.sign(harvest.outcome[decisive]))
+        print(f"\n  search value predicts the winner (decisive positions): {agreement:.3f}")
+        print("  no --value-scale needed: this harvest's values are already expected outcomes")
+    else:
+        scale, buckets = calibrate_value_scale(harvest)
+        print("\nHow well the search's score predicts the result (non-terminal, decisive positions):")
+        for low, high, count, agreement in buckets:
+            print(f"  |score| in [{low:>3.0f}, {high:>5.0f}): n={count:6d}   correct sign {agreement:.3f}")
+        print(f"\n  suggested --value-scale {scale:.0f}")
 
 
 if __name__ == "__main__":

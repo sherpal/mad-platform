@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Trains the MAD network to imitate the minimax engine.
+"""Trains the MAD network, from a supervised harvest or from self-play games or from both.
 
-This is the supervised bootstrap, not self-play. The targets come from a harvest of engine-vs-engine
-games, so what comes out is at best as good as the depth-N engine that produced it - the point is a
-warm start that saves days of self-play, and a way to prove the whole pipeline works against a
-baseline whose strength is already known.
+A supervised harvest teaches the network to imitate the minimax, so what comes out is at best as good
+as the engine that produced it. Self-play games have no such ceiling: their targets come from a search
+over the network's own judgement, which is stronger than the network alone, so training on them moves
+it toward something its own search already demonstrated.
 
+    # the bootstrap
     python train.py ../data/nn/bootstrap --out ../data/nn/model
+
+    # a self-play generation, warm-started and trained on its own games plus what came before
+    python train.py ../data/nn/bootstrap ../data/nn/gen1 --init ../data/nn/model/model.pt \
+        --out ../data/nn/gen1-model
 """
 
 from __future__ import annotations
@@ -26,7 +31,21 @@ from model import MadNet, Shape
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("harvest", type=Path, help="directory holding manifest.json and the shards")
+    parser.add_argument(
+        "harvest",
+        type=Path,
+        nargs="+",
+        help="one or more directories holding manifest.json and shards. Several is the normal case once "
+        "self-play starts: a generation trains on its own games plus the ones before it, which is what "
+        "stops the network chasing whatever its latest batch happened to contain.",
+    )
+    parser.add_argument(
+        "--init",
+        type=Path,
+        default=None,
+        help="checkpoint to start from instead of random weights. Each generation should warm-start from "
+        "the current champion; starting over would throw away everything already learnt.",
+    )
     parser.add_argument("--out", type=Path, default=Path("../data/nn/model"))
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=512)
@@ -76,23 +95,45 @@ def main() -> None:
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    harvest = dataset.load(args.harvest)
-    manifest = harvest.manifest
-    print(f"Loaded {len(harvest)} positions from {args.harvest} ({manifest.game_type})")
+    # Targets are computed per harvest and only then concatenated: a supervised harvest and a self-play
+    # one need entirely different recipes, and mixing the raw arrays first would apply one of them to
+    # both. See dataset.policy_targets.
+    harvests = [dataset.load(path) for path in args.harvest]
+    manifest = harvests[0].manifest
+    for other in harvests[1:]:
+        if other.manifest.action_fingerprint != manifest.action_fingerprint:
+            raise SystemExit("these harvests were made against different action orderings; they cannot be mixed")
 
-    policy = dataset.policy_targets(harvest, args.policy_temperature)
-    value = dataset.value_targets(harvest, args.value_blend, args.value_scale)
-    train_idx, valid_idx = dataset.split(harvest, args.validation_fraction)
-    print(f"  {len(train_idx)} training, {len(valid_idx)} held out (contiguous split, whole games)")
+    features_np, legal_np, policy_np, value_np, valid_parts, offset = [], [], [], [], [], 0
+    for path, harvest in zip(args.harvest, harvests):
+        train_idx, valid_idx = dataset.split(harvest, args.validation_fraction)
+        features_np.append(harvest.features)
+        legal_np.append(harvest.legal)
+        policy_np.append(dataset.policy_targets(harvest, args.policy_temperature))
+        value_np.append(dataset.value_targets(harvest, args.value_blend, args.value_scale))
+        # Held out per harvest, so every source is represented on both sides of the split.
+        valid_parts.append(valid_idx + offset)
+        offset += len(harvest)
+        print(f"Loaded {len(harvest):>7} positions from {path} ({harvest.manifest.policy_signal})")
+
+    features = torch.from_numpy(np.concatenate(features_np))
+    legal = torch.from_numpy(np.concatenate(legal_np))
+    policy_t = torch.from_numpy(np.concatenate(policy_np))
+    value_t = torch.from_numpy(np.concatenate(value_np))
+
+    valid_idx = np.concatenate(valid_parts)
+    train_idx = np.setdiff1d(np.arange(offset), valid_idx)
+    print(f"  {len(train_idx)} training, {len(valid_idx)} held out (contiguous within each harvest)")
 
     device = torch.device(args.device)
-    features = torch.from_numpy(np.ascontiguousarray(harvest.features))
-    legal = torch.from_numpy(np.ascontiguousarray(harvest.legal))
-    policy_t = torch.from_numpy(policy)
-    value_t = torch.from_numpy(value)
-
     shape = Shape(manifest.plane_count, manifest.rows, manifest.cols, manifest.policy_size)
     net = MadNet(shape, channels=args.channels, blocks=args.blocks).to(device)
+    if args.init is not None:
+        checkpoint = torch.load(args.init, map_location=device, weights_only=False)
+        if checkpoint["action_fingerprint"] != manifest.action_fingerprint:
+            raise SystemExit(f"{args.init} was trained against a different action ordering")
+        net.load_state_dict(checkpoint["state_dict"])
+        print(f"  warm-started from {args.init}")
     print(f"  network: {args.blocks} blocks x {args.channels} channels, {net.parameter_count():,} parameters")
 
     optimiser = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -190,8 +231,8 @@ def main() -> None:
     (args.out / "training.json").write_text(
         json.dumps(
             {
-                "harvest": str(args.harvest),
-                "positions": len(harvest),
+                "harvest": [str(path) for path in args.harvest],
+                "positions": int(offset),
                 "action_fingerprint": manifest.action_fingerprint,
                 "best_validation_top1": best_top1,
                 "args": {key: str(value) for key, value in vars(args).items()},
