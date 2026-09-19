@@ -37,7 +37,12 @@ lazy val game = projectMatrix
   .jvmPlatform(
     scalaVersions = Seq(commonScalaVersion),
     settings = Seq(
-      libraryDependencies ++= Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0")
+      libraryDependencies ++= Seq(
+        "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
+        // Runs the network exported by python/export_onnx.py. The browser loads that same file through
+        // onnxruntime-web, so there is one model and one implementation of it, not two.
+        "com.microsoft.onnxruntime" % "onnxruntime" % "1.20.0"
+      )
     )
   )
   .jsPlatform(
