@@ -61,11 +61,10 @@ final class PinnedOrderSpecs extends munit.FunSuite:
   }
 
   test("actionOrderIsPinned") {
-    // A fingerprint rather than 306 literals. String.hashCode is specified by the JDK and matched by Scala.js, so this
-    // is stable across both platforms the game compiles to.
-    val fingerprint = GameAction.allActions.toVector.map(ActionIndex.descriptor).mkString("\n").hashCode
+    // A fingerprint rather than 306 literals. The same number is stamped into every training set's manifest, so a
+    // model, its data and the engine can all be checked against one another.
     assertEquals(
-      fingerprint,
+      ActionIndex.orderingFingerprint,
       ACTION_FINGERPRINT,
       "The order of GameAction.allActions changed. Any trained network's policy head is now wrong."
     )

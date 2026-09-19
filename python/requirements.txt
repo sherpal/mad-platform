@@ -1,0 +1,6 @@
+# The whole Python footprint of the project. Nothing here knows the rules of Mad: the engine hands over
+# encoded positions and gets back a .onnx file, and that is the entire contract.
+numpy>=1.26
+torch>=2.5
+onnx>=1.17
+onnxruntime>=1.20

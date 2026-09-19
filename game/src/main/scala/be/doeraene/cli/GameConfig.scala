@@ -68,6 +68,26 @@ object GameConfig:
     */
   case class TuneClaude(iterations: Int, minimaxDepth: Int) extends GameConfig
 
+  /** Harvest labelled positions for the neural network's supervised bootstrap.
+    *
+    * @param output
+    *   directory the shards and their manifest are written to
+    * @param games
+    *   how many games to play; each contributes roughly one position per ply
+    * @param minimaxDepth
+    *   search depth behind the labels, so also what decides how long a harvest takes
+    * @param explorationRate
+    *   how often to play a random move rather than the engine's choice, for diversity
+    */
+  case class HarvestPositions(
+      output: String,
+      games: Int,
+      minimaxDepth: Int,
+      seed: Long,
+      explorationRate: Double,
+      samplesPerShard: Int
+  ) extends GameConfig
+
   sealed trait AIConfig {
     def player(minimaxDepth: Int): MadPlayer
   }
@@ -217,6 +237,31 @@ object GameConfig:
     )
   }
 
+  private def harvestPositionsConfig(args: Vector[String]): GameConfig = {
+    if args.isEmpty then {
+      println("""
+          |Usage: harvest-positions <output-dir> <games> [minimax-depth] [seed] [exploration-rate] [samples-per-shard]
+          |Plays the tactical engine against itself from randomised openings and writes every position out with the
+          |search's scores for each move, for the neural network's supervised bootstrap.
+          |minimax-depth: search depth behind the labels (default 4; this is what a harvest's cost is made of)
+          |exploration-rate: how often to play a random move instead of the best one (default 0.05)
+          |Example: run harvest-positions ./data/nn/bootstrap 2000 4
+          |""".stripMargin)
+      throw RuntimeException("Early stop.")
+    }
+
+    if args.length < 2 then throw IllegalArgumentException("harvest-positions requires at least 2 arguments")
+
+    HarvestPositions(
+      output = args(0),
+      games = args(1).toInt,
+      minimaxDepth = Try(args(2).toInt).getOrElse(4),
+      seed = Try(args(3).toLong).getOrElse(42L),
+      explorationRate = Try(args(4).toDouble).getOrElse(0.05),
+      samplesPerShard = Try(args(5).toInt).getOrElse(65536)
+    )
+  }
+
   private def bestActionConfig(args: Vector[String]): GameConfig = {
     if args.isEmpty then {
       println("""
@@ -295,5 +340,6 @@ object GameConfig:
         case "tune-claude" => tuneClaudeConfig(args.tail.toVector)
         case "tune-tactical" => tuneTacticalConfig(args.tail.toVector)
         case "texel-tune"    => texelTuneConfig(args.tail.toVector)
+        case "harvest-positions" => harvestPositionsConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }
