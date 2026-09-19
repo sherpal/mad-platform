@@ -43,3 +43,6 @@ my-change.patch
 
 python/.venv/
 __pycache__/
+
+# Copied from node_modules by the build; see build.sbt copyWorker
+frontend/public/web-worker/ort/

@@ -12,7 +12,12 @@ import scala.util.Random
 import be.doeraene.utils.communication.MadTranslators.given
 import io.circe.generic.auto.*
 import be.doeraene.communication.WorkerAPI.makeWorkerCompute
-import be.doeraene.workers.WorkerProtocol.{CurrentGameStateWithSelectedAction, GameActionWithScore}
+import be.doeraene.workers.WorkerProtocol.{
+  CurrentGameStateWithSelectedAction,
+  GameActionWithScore,
+  NeuralMove,
+  NeuralMoveRequest
+}
 import scala.concurrent.ExecutionContext
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Promise
@@ -58,6 +63,30 @@ object AIApi:
     } yield selectedAction.gameAction
 
   }
+
+  /** Asks the neural engine for a move.
+    *
+    * One worker round-trip for the whole move, unlike [[askNextAction]], which spawns a worker per
+    * candidate move and scores each independently. A tree search decides for itself where to spend its
+    * next simulation, so it cannot be split up that way - and it does not need to be, since the network
+    * evaluates a position in well under a millisecond.
+    *
+    * @param simulations
+    *   how many leaves the search visits. Strength against how long the move takes; a few hundred is
+    *   quick, a few thousand is stronger and noticeably slower in a browser.
+    */
+  def askNeuralAction(currentGameState: GameState, simulations: Int): Future[GameAction] =
+    println(s"Asking the neural worker for a move ($simulations simulations)...")
+    val started = new js.Date
+
+    PersistentWorker.compute(NeuralMoveRequest(currentGameState, simulations)).map { move =>
+      val elapsed = (new js.Date).getTime() - started.getTime()
+      println(
+        f"Neural move ${move.gameAction.prettyPrint(currentGameState)}, " +
+          f"position worth ${move.value}%.2f to the mover (${elapsed}%.0f ms)"
+      )
+      move.gameAction
+    }
 
   def askNextActionViaServer(turnAhead: Int, aValue: Double, currentGameState: GameState): Future[GameAction] =
     makeCall

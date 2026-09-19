@@ -139,12 +139,49 @@ def copyWorker(
   Def.task {
     val _         = linkTask.value
     val outputDir = outputTask.value
-    val targetDir = (ThisBuild / baseDirectory).value / "frontend" / "public" / "web-worker"
+    val root      = (ThisBuild / baseDirectory).value
+    val targetDir = root / "frontend" / "public" / "web-worker"
 
     println(s"Copying worker files to $targetDir (from $outputDir)")
 
     IO.copyDirectory(outputDir, targetDir)
+    copyOnnxRuntime(root)
   }
+
+/** Puts onnxruntime-web next to the worker that imports it.
+  *
+  * It has to sit *there* specifically. The worker is copied into `public/`, which Vite serves
+  * untouched, so nothing resolves bare module specifiers for it the way it would for the frontend -
+  * `import "onnxruntime-web/wasm"` reaches the browser verbatim and fails to load the whole worker.
+  * The worker therefore imports `./ort/ort.wasm.bundle.min.mjs`, a relative path a browser can resolve
+  * on its own, and this puts the file at that path.
+  *
+  * Copied from node_modules rather than committed: 14MB, reproducible from `npm ci`, and pinned by the
+  * lockfile. Only the plain CPU build is taken - the jsep (WebGPU), jspi and asyncify variants are
+  * another 69MB between them and nothing here asks for any of them. The model itself *is* committed,
+  * under `frontend/public/nn`, since nothing can regenerate it.
+  */
+def copyOnnxRuntime(root: File): Unit = {
+  val source = root / "frontend" / "node_modules" / "onnxruntime-web" / "dist"
+  val target = root / "frontend" / "public" / "web-worker" / "ort"
+
+  if (!source.exists) {
+    println(s"[warn] $source is missing - run npm ci in frontend/, or the neural engine will not load")
+  } else {
+    IO.createDirectory(target)
+    val wanted = List(
+      "ort.wasm.bundle.min.mjs",         // the runtime itself, as one self-contained ES module
+      "ort-wasm-simd-threaded.wasm",     // the binary it fetches at init, via env.wasm.wasmPaths
+      "ort-wasm-simd-threaded.mjs"
+    )
+    val copied = wanted.flatMap { name =>
+      val file = source / name
+      if (file.exists) { IO.copyFile(file, target / name); Some(name) }
+      else { println(s"[warn] onnxruntime-web did not ship $name"); None }
+    }
+    println(s"Copied ${copied.size} onnxruntime-web files to $target")
+  }
+}
 
 Global / fastOptWorker := copyWorker(
   `web-worker` / Compile / fastLinkJS,
