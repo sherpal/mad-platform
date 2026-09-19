@@ -22,6 +22,13 @@ object AIGameView:
 
     val aiProgress = Var(0)
 
+    /* Defaults to the network because it is simply the stronger player now: searching over it beats the
+     * minimax at depth 4, which is the minimax's own best setting. The old engine stays selectable -
+     * it is what every previous game was played against, and it is the only one that works if the model
+     * has not been fetched. */
+    val useNeural   = Var(true)
+    val simulations = Var(800)
+
     val playerChoosesNextGameActionBus: EventBus[GameAction] = new EventBus
     val aiChoosesNextGameActionBus: EventBus[GameState]      = new EventBus
 
@@ -31,10 +38,16 @@ object AIGameView:
       .merge(
         playerChoosesNextGameActionBus.events,
         aiChoosesNextGameActionBus.events
-          .withCurrentValueOf(turnAhead.signal)
-          .map((gs, t) => (gs, t, aFunction(gs)))
-          .flatMapSwitch { (gs, t, a) =>
-            EventStream.fromFuture(askNextAction(t, a, gs, progress => aiProgress.update(_ => progress)))
+          .withCurrentValueOf(turnAhead.signal, useNeural.signal, simulations.signal)
+          .flatMapSwitch { (gs, t, neural, sims) =>
+            EventStream.fromFuture(
+              if neural then
+                /* The search reports nothing until it is finished, so there is no honest progress to
+                 * show - a bar creeping along would be made up. Jump to full when the move arrives. */
+                aiProgress.set(0)
+                askNeuralAction(gs, sims).andThen { case _ => aiProgress.set(100) }
+              else askNextAction(t, aFunction(gs), gs, progress => aiProgress.update(_ => progress))
+            )
           }
       )
       .map(WithTime(_, startTime.until(WithTime.time.Time.now())))
@@ -64,14 +77,42 @@ object AIGameView:
       div(
         paddingTop.px    := 20,
         paddingBottom.px := 10,
-        "Level (Turns ahead for the AI): ",
+        "Engine: ",
         select(
           controlled(
-            value <-- turnAhead.signal.map(_.toString),
-            onChange.mapToValue --> turnAhead.writer.contramap[String](_.toInt)
+            value <-- useNeural.signal.map(if _ then "neural" else "minimax"),
+            onChange.mapToValue --> useNeural.writer.contramap[String](_ == "neural")
           ),
-          (1 to 5).toList.map(level => option(value := level.toString, level.toString))
+          option(value := "neural", "Neural network"),
+          option(value := "minimax", "Minimax")
         )
+      ),
+      div(
+        paddingBottom.px := 10,
+        child <-- useNeural.signal.map { neural =>
+          if neural then
+            div(
+              "Strength (simulations per move): ",
+              select(
+                controlled(
+                  value <-- simulations.signal.map(_.toString),
+                  onChange.mapToValue --> simulations.writer.contramap[String](_.toInt)
+                ),
+                List(200, 400, 800, 1600, 3200).map(count => option(value := count.toString, count.toString))
+              )
+            )
+          else
+            div(
+              "Level (Turns ahead for the AI): ",
+              select(
+                controlled(
+                  value <-- turnAhead.signal.map(_.toString),
+                  onChange.mapToValue --> turnAhead.writer.contramap[String](_.toInt)
+                ),
+                (1 to 5).toList.map(level => option(value := level.toString, level.toString))
+              )
+            )
+        }
       ),
       onMountBind(ctx =>
         gameStateSignal --> ((gs: GameState) =>

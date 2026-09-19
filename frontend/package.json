@@ -14,6 +14,7 @@
     "@ui5/webcomponents": "1.24.7",
     "@ui5/webcomponents-fiori": "1.24.7",
     "@ui5/webcomponents-icons": "1.24.7",
-    "jszip": "3.10.2"
+    "jszip": "3.10.2",
+    "onnxruntime-web": "^1.30.0"
   }
 }
