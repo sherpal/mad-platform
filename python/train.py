@@ -139,6 +139,20 @@ def main() -> None:
 
     args.out.mkdir(parents=True, exist_ok=True)
     best_top1 = -1.0
+    best_policy_loss = float("inf")
+
+    def save(name: str, metrics: dict[str, float]) -> None:
+        torch.save(
+            {
+                "state_dict": net.state_dict(),
+                "shape": shape.__dict__,
+                "channels": args.channels,
+                "blocks": args.blocks,
+                "action_fingerprint": manifest.action_fingerprint,
+                **metrics,
+            },
+            args.out / name,
+        )
 
     for epoch in range(1, args.epochs + 1):
         started = time.time()
@@ -151,22 +165,27 @@ def main() -> None:
             f"train policy {train_stats['policy']:.4f} value {train_stats['value']:.4f} "
             f"top1 {train_stats['top1']:.3f}  |  "
             f"valid policy {valid_stats['policy']:.4f} value {valid_stats['value']:.4f} "
-            f"top1 {valid_stats['top1']:.3f}  ({time.time() - started:.1f}s)"
+            f"top1 {valid_stats['top1']:.3f}  ({time.time() - started:.1f}s)",
+            # A run takes long enough to want to watch, and stdout is block-buffered the moment this is
+            # piped to a log or a tee rather than a terminal.
+            flush=True,
         )
 
         if valid_stats["top1"] > best_top1:
             best_top1 = valid_stats["top1"]
-            torch.save(
-                {
-                    "state_dict": net.state_dict(),
-                    "shape": shape.__dict__,
-                    "channels": args.channels,
-                    "blocks": args.blocks,
-                    "action_fingerprint": manifest.action_fingerprint,
-                    "validation_top1": best_top1,
-                },
-                args.out / "model.pt",
-            )
+            save("model.pt", {"validation_top1": best_top1, "selected_on": "top1"})
+
+        # Two checkpoints, because the two criteria disagree and it is not obvious which one a search
+        # wants. Top-1 keeps creeping up long after the held-out cross-entropy has turned around, which
+        # means the network is getting more confident about its favourite move while its ranking of
+        # everything else gets worse. MCTS uses the whole distribution as a prior, not just the argmax,
+        # so the better-calibrated checkpoint may well play better despite the worse headline number.
+        # Compare them with evaluate.py rather than assuming.
+        if valid_stats["policy"] < best_policy_loss:
+            best_policy_loss = valid_stats["policy"]
+            save("model-calibrated.pt", {"validation_policy_loss": best_policy_loss,
+                                         "validation_top1": valid_stats["top1"],
+                                         "selected_on": "policy_loss"})
 
     (args.out / "training.json").write_text(
         json.dumps(

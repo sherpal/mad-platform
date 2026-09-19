@@ -49,14 +49,46 @@ ordinary position to +-1. Pass what it suggests:
 
 ## What to watch
 
-**Held-out top-1 agreement**, not the losses. It is the fraction of positions where the network's
-favourite legal move is the engine's favourite move, and it is the only number here that corresponds to
-playing strength. Cross-entropy keeps drifting down on the long tail of near-equivalent quiet moves long
-after the network has stopped learning anything that changes how it plays.
+Top-1 agreement is the number training prints, but it is a harsh one - it scores playing a move the
+engine rated 9.9 exactly as badly as a blunder, when the best was 10.0. Use `evaluate.py` for the
+picture that matters:
 
-A bootstrap that reaches somewhere in the 50-70% range is doing its job: the network cannot be expected
-to reproduce a 4-ply search from a single forward pass, and it does not need to. What it needs to be is
-a prior good enough that a search on top of it starts somewhere sensible.
+```bash
+.venv/bin/python evaluate.py ../data/nn/bootstrap ../data/nn/model/model.pt
+```
+
+**Regret** - how much evaluator score the network's favourite move gives up against the engine's - and
+the top-k rates are what tell you whether this is a usable prior. A search explores well beyond the
+network's first choice, so the best move being in the top 5 matters more than it being first.
+
+Measured on the first depth-3 bootstrap (100k positions):
+
+| | |
+|---|---|
+| best move in top 1 / 3 / 5 / 10 | 0.40 / 0.64 / 0.77 / 0.92 |
+| median regret | 0.86 |
+| threw away a forced win | 0.076 |
+| value head predicts the winner | 0.640 |
+| *the depth-3 search's own root score, same positions* | *0.646* |
+
+The value head is the clear success: one forward pass judges who is winning as well as the search it was
+distilled from. The policy head is a usable prior and no more - and the forced-win blunders are exactly
+what putting a search on top of it is for.
+
+## Two things that turned out not to be true
+
+**A first guess put top-1 at 50-70%. It is 40%.** A single forward pass reproducing a 3-ply search's
+choice is harder than it sounds, and the network is squarely data-bound rather than capacity-bound:
+train top-1 reaches 0.94 against a held-out 0.41. More positions is the lever, not a bigger network.
+
+**Selecting the checkpoint on held-out cross-entropy rather than top-1 does not help.** Held-out CE
+bottoms out around epoch 13 and then climbs while top-1 keeps rising, which looks like the network
+trading calibration for confidence - so `model-calibrated.pt` is saved alongside `model.pt` to test it.
+It loses: top-1 0.373 against 0.403, median regret 1.45 against 0.86. The early checkpoint has an
+under-trained policy, not a better-calibrated one. Its *value* head is slightly better (correlation
+0.575 against 0.551), so the two heads do want different stopping points, but the effect is small.
+
+Run-to-run noise on these numbers is about 0.006, so treat anything under 0.01 as a tie.
 
 ## Two things that will silently ruin a run
 
