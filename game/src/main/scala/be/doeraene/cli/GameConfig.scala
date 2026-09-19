@@ -88,6 +88,26 @@ object GameConfig:
       samplesPerShard: Int
   ) extends GameConfig
 
+  /** Play a searching network against one of the minimax configurations, over the usual opening battery.
+    *
+    * Kept out of [[AIConfig]] on purpose: a model path only means anything on the JVM, and `AIConfig` is
+    * cross-compiled to the browser.
+    *
+    * @param model
+    *   path to a `.onnx` written by `python/export_onnx.py`, with its `.json` sidecar beside it
+    * @param simulations
+    *   how many leaves the search visits per move - the network player's strength/time dial
+    */
+  case class NeuralBenchmark(
+      model: String,
+      simulations: Int,
+      batchSize: Int,
+      minimaxDepth: Int,
+      opponent: AIConfig,
+      openings: Int,
+      seed: Long
+  ) extends GameConfig
+
   sealed trait AIConfig {
     def player(minimaxDepth: Int): MadPlayer
   }
@@ -262,6 +282,29 @@ object GameConfig:
     )
   }
 
+  private def neuralBenchmarkConfig(args: Vector[String]): GameConfig = {
+    if args.isEmpty then {
+      println("""
+          |Usage: nn-benchmark <model.onnx> [simulations] [minimax-depth] [opponent-json] [openings] [seed] [batch]
+          |Plays an MCTS-over-network player against a minimax configuration on the usual battery of
+          |positioning-turn openings, each with both colour assignments.
+          |simulations: leaves the search visits per move (default 400)
+          |Example: run nn-benchmark ./data/nn/model/model.onnx 400 3 '{"Tactical":{}}' 20
+          |""".stripMargin)
+      throw RuntimeException("Early stop.")
+    }
+
+    NeuralBenchmark(
+      model = args(0),
+      simulations = Try(args(1).toInt).getOrElse(400),
+      minimaxDepth = Try(args(2).toInt).getOrElse(3),
+      opponent = Try(args(3)).toOption.fold(AIConfig.Tactical())(io.circe.parser.decode[AIConfig](_).toTry.get),
+      openings = Try(args(4).toInt).getOrElse(20),
+      seed = Try(args(5).toLong).getOrElse(42L),
+      batchSize = Try(args(6).toInt).getOrElse(16)
+    )
+  }
+
   private def bestActionConfig(args: Vector[String]): GameConfig = {
     if args.isEmpty then {
       println("""
@@ -341,5 +384,6 @@ object GameConfig:
         case "tune-tactical" => tuneTacticalConfig(args.tail.toVector)
         case "texel-tune"    => texelTuneConfig(args.tail.toVector)
         case "harvest-positions" => harvestPositionsConfig(args.tail.toVector)
+        case "nn-benchmark"      => neuralBenchmarkConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

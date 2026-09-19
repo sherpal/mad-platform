@@ -6,7 +6,9 @@ import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
 import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
 import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
+import be.doeraene.mad.ai.nn.OnnxEvaluator
 import be.doeraene.mad.ai.nn.data.{ShardWriter, SupervisedHarvester}
+import be.doeraene.mad.ai.nn.mcts
 import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, PieceEvaluator, Team}
 
 import java.nio.file.Paths
@@ -215,5 +217,40 @@ import scala.util.Random
       writer.close()
 
       println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
+
+    case GameConfig.NeuralBenchmark(model, simulations, batchSize, minimaxDepth, opponentConfig, openings, seed) =>
+      val games      = benchmark.Benchmark.battery(openings, seed)
+      val opponent   = opponentConfig.player(minimaxDepth)
+      val searchConf = mcts.SearchConfig(simulations = simulations, batchSize = batchSize)
+
+      /* The literal "uninformed" runs the same search with flat priors and no value estimate, which is
+       * the baseline the network has to beat to be worth anything. Without it, a network that had learnt
+       * nothing and a network that had learnt plenty would both just look like "MCTS scores X". */
+      val evaluator =
+        if model == "uninformed" then mcts.BatchEvaluator.uninformed
+        else OnnxEvaluator(Paths.get(model), GameBoundaries.originalSixByFour)
+      try
+        val label     = if model == "uninformed" then "UCT" else "Neural"
+        val candidate = mcts.Mcts.player(evaluator, searchConf, name = label)
+        println(
+          s"Benchmark: $simulations-simulation MCTS over $model vs $opponentConfig at depth $minimaxDepth, " +
+            s"over ${games.size} games"
+        )
+
+        val (report, time) = Player.timeIt(
+          benchmark.Benchmark.run(
+            candidate,
+            opponent,
+            games,
+            (done, total) => if done % 10 == 0 || done == total then println(s"  $done/$total games played")
+          )
+        )
+
+        println(report.pretty(s"$label-$simulations", opponentConfig.toString))
+        println(s"(took ${time.toSeconds}s)")
+      finally
+        evaluator match
+          case closeable: AutoCloseable => closeable.close()
+          case _                        => ()
 
   }
