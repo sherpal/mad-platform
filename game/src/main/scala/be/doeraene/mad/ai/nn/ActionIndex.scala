@@ -141,6 +141,15 @@ object ActionIndex:
     * Unlike [[GameAction.prettyPrint]] this needs no [[GameState]], which is what lets `PinnedOrderSpecs` fingerprint
     * the whole ordering and fail loudly if anything ever permutes it.
     */
+  /** Hash of the whole ordering, as the concatenated [[descriptor]]s of [[GameAction.allActions]].
+    *
+    * Stamped into a training set's manifest and asserted by `PinnedOrderSpecs`, so a model and the data it was trained
+    * on can both be tied to the layout they assume. `String.hashCode` is specified by the JDK and matched by Scala.js,
+    * so this is the same number on both platforms the game compiles to.
+    */
+  lazy val orderingFingerprint: Int =
+    GameAction.allActions.toVector.map(descriptor).mkString("\n").hashCode
+
   def descriptor(action: GameAction): String = action match
     case action: Identity        => s"Pass(${action.actionForTeam.prettyPrint})"
     case action: GamePieceMoves1 => s"Move1(${action.piece.prettyPrint},${action.direction.x},${action.direction.y})"

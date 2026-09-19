@@ -6,7 +6,8 @@ import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
 import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
 import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
-import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Team}
+import be.doeraene.mad.ai.nn.data.{ShardWriter, SupervisedHarvester}
+import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, PieceEvaluator, Team}
 
 import java.nio.file.Paths
 import java.time.ZoneOffset
@@ -185,5 +186,34 @@ import scala.util.Random
         resultsDir.resolve(s"claude-weights-${java.time.LocalDateTime.now.toEpochSecond(ZoneOffset.UTC)}.txt")
       java.nio.file.Files.writeString(resultFile, s"score=$bestScore/$batterySize\n$bestWeights\n")
       println(s"Saved to $resultFile")
+
+    case GameConfig.HarvestPositions(output, games, minimaxDepth, seed, explorationRate, samplesPerShard) =>
+      val boundaries = GameBoundaries.originalSixByFour
+      val outputDir  = Paths.get(output)
+      val harvestConfig = SupervisedHarvester.Config(
+        games = games,
+        seed = seed,
+        minimaxDepth = minimaxDepth,
+        explorationRate = explorationRate
+      )
+
+      println(
+        s"Harvesting positions from $games depth-$minimaxDepth self-play games " +
+          f"(exploration $explorationRate%.2f, seed $seed) into $outputDir"
+      )
+
+      val writer = ShardWriter(outputDir, boundaries, samplesPerShard)
+      val (_, time) = Player.timeIt(
+        SupervisedHarvester.harvest(
+          Player.tacticalTreeExplorer,
+          boundaries,
+          harvestConfig,
+          writer,
+          (done, total, samples) => println(f"  $done%d/$total%d games, $samples%d positions")
+        )
+      )
+      writer.close()
+
+      println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
 
   }
