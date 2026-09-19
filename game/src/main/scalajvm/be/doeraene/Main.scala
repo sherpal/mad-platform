@@ -7,7 +7,8 @@ import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
 import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
 import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
 import be.doeraene.mad.ai.nn.OnnxEvaluator
-import be.doeraene.mad.ai.nn.data.{ShardWriter, SupervisedHarvester}
+import be.doeraene.mad.ai.nn.data
+import be.doeraene.mad.ai.nn.data.{SelfPlayHarvester, ShardWriter, SupervisedHarvester}
 import be.doeraene.mad.ai.nn.mcts
 import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, PieceEvaluator, Team}
 
@@ -257,4 +258,68 @@ import scala.util.Random
           case closeable: AutoCloseable => closeable.close()
           case _                        => ()
 
+    case GameConfig.SelfPlay(model, output, games, simulations, batchSize, seed, samplesPerShard) =>
+      val boundaries = GameBoundaries.originalSixByFour
+      val outputDir  = Paths.get(output)
+      val evaluator  = evaluatorFor(model, boundaries)
+
+      try
+        val writer = ShardWriter(outputDir, boundaries, samplesPerShard, data.PolicySignal.VisitCounts)
+        val config = SelfPlayHarvester.Config(
+          games = games,
+          seed = seed,
+          search = mcts.SearchConfig(simulations = simulations, batchSize = batchSize)
+        )
+
+        println(s"Self-play: $games games of $simulations-simulation search over $model into $outputDir")
+
+        val (_, time) = Player.timeIt(
+          SelfPlayHarvester.harvest(
+            evaluator,
+            boundaries,
+            config,
+            writer,
+            (done, total, samples) => println(f"  $done%d/$total%d games, $samples%d positions")
+          )
+        )
+        writer.close()
+        println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
+      finally close(evaluator)
+
+    case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed) =>
+      val boundaries   = GameBoundaries.originalSixByFour
+      val games        = benchmark.Benchmark.battery(openings, seed)
+      val searchConf   = mcts.SearchConfig(simulations = simulations)
+      val challenger   = evaluatorFor(challengerPath, boundaries)
+      val champion     = evaluatorFor(championPath, boundaries)
+
+      try
+        println(s"Arena: $challengerPath vs $championPath at $simulations simulations, ${games.size} games")
+        val (report, time) = Player.timeIt(
+          benchmark.Benchmark.run(
+            mcts.Mcts.player(challenger, searchConf, "challenger"),
+            mcts.Mcts.player(champion, searchConf, "champion"),
+            games,
+            (done, total) => if done % 10 == 0 || done == total then println(s"  $done/$total games played")
+          )
+        )
+        println(report.pretty("challenger", "champion"))
+        /* The usual gate. A challenger that merely draws level is not evidence of an improvement, and
+         * promoting on 50% lets a generation drift sideways indefinitely. */
+        val verdict = if report.winRate > 0.55 then "PROMOTE" else "keep the champion"
+        println(f"$verdict (challenger scored ${report.winRate * 100}%.1f%%, gate is 55%%)")
+        println(s"(took ${time.toSeconds}s)")
+      finally
+        close(challenger)
+        close(champion)
+
   }
+
+/** Builds an evaluator from a path, or the literal "uninformed" for flat priors and no value estimate. */
+private def evaluatorFor(model: String, boundaries: GameBoundaries): mcts.BatchEvaluator =
+  if model == "uninformed" then mcts.BatchEvaluator.uninformed
+  else OnnxEvaluator(Paths.get(model), boundaries)
+
+private def close(evaluator: mcts.BatchEvaluator): Unit = evaluator match
+  case closeable: AutoCloseable => closeable.close()
+  case _                        => ()

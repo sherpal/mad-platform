@@ -115,6 +115,33 @@ object GameConfig:
       seed: Long
   ) extends GameConfig
 
+  /** Generate training data by having a network play itself under search.
+    *
+    * @param model
+    *   the `.onnx` to play with, or the literal `uninformed` to start from flat priors
+    * @param simulations
+    *   search depth per move. More makes better labels and a slower generation, and it is the dial that
+    *   decides how much stronger than the network the teacher is.
+    */
+  case class SelfPlay(
+      model: String,
+      output: String,
+      games: Int,
+      simulations: Int,
+      batchSize: Int,
+      seed: Long,
+      samplesPerShard: Int
+  ) extends GameConfig
+
+  /** Play two networks against each other, to decide whether a newly trained one is actually better. */
+  case class Arena(
+      challenger: String,
+      champion: String,
+      simulations: Int,
+      openings: Int,
+      seed: Long
+  ) extends GameConfig
+
   sealed trait AIConfig {
     def player(minimaxDepth: Int): MadPlayer
   }
@@ -313,6 +340,49 @@ object GameConfig:
     )
   }
 
+  private def selfPlayConfig(args: Vector[String]): GameConfig = {
+    if args.length < 3 then {
+      println("""
+          |Usage: self-play <model.onnx|uninformed> <output-dir> <games> [simulations] [seed] [batch] [per-shard]
+          |Has the network play itself under search and records the visit counts as training targets.
+          |simulations: search per move (default 400); this is what makes the teacher stronger than the
+          |             network it is teaching, so it is the main quality/cost dial.
+          |Example: run self-play ./data/nn/model/model.onnx ./data/nn/gen1 2000 400
+          |""".stripMargin)
+      throw IllegalArgumentException("self-play requires at least 3 arguments")
+    }
+
+    SelfPlay(
+      model = args(0),
+      output = args(1),
+      games = args(2).toInt,
+      simulations = Try(args(3).toInt).getOrElse(400),
+      seed = Try(args(4).toLong).getOrElse(42L),
+      batchSize = Try(args(5).toInt).getOrElse(16),
+      samplesPerShard = Try(args(6).toInt).getOrElse(65536)
+    )
+  }
+
+  private def arenaConfig(args: Vector[String]): GameConfig = {
+    if args.length < 2 then {
+      println("""
+          |Usage: arena <challenger.onnx> <champion.onnx|uninformed> [simulations] [openings] [seed]
+          |Plays two networks against each other over the usual battery, both colours, to decide whether
+          |a newly trained network is actually an improvement.
+          |Example: run arena ./data/nn/gen1/model.onnx ./data/nn/model/model.onnx 400 20
+          |""".stripMargin)
+      throw IllegalArgumentException("arena requires at least 2 arguments")
+    }
+
+    Arena(
+      challenger = args(0),
+      champion = args(1),
+      simulations = Try(args(2).toInt).getOrElse(400),
+      openings = Try(args(3).toInt).getOrElse(20),
+      seed = Try(args(4).toLong).getOrElse(42L)
+    )
+  }
+
   private def bestActionConfig(args: Vector[String]): GameConfig = {
     if args.isEmpty then {
       println("""
@@ -393,5 +463,7 @@ object GameConfig:
         case "texel-tune"    => texelTuneConfig(args.tail.toVector)
         case "harvest-positions" => harvestPositionsConfig(args.tail.toVector)
         case "nn-benchmark"      => neuralBenchmarkConfig(args.tail.toVector)
+        case "self-play"         => selfPlayConfig(args.tail.toVector)
+        case "arena"             => arenaConfig(args.tail.toVector)
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

@@ -46,10 +46,26 @@ final case class TrainingSample(
   * model trained after one would agree on every shape and disagree on every meaning, so the two need to be tied
   * together by something.
   */
+/** What the numbers in a shard's `scores` and `rootScore` arrays actually mean.
+  *
+  * The two producers write the same shapes with different semantics, and nothing downstream could tell
+  * them apart by looking. A supervised harvest carries raw minimax scores, which need a softmax with a
+  * temperature and a tanh with a fitted scale; a self-play harvest carries visit counts and a search
+  * value, which need normalising and nothing respectively. Feeding one to the other's recipe produces a
+  * plausible-looking training run and a network that has learnt the wrong thing.
+  */
+enum PolicySignal:
+  /** `scores` are raw minimax scores per action, `rootScore` is the search's score for the position. */
+  case SearchScores
+
+  /** `scores` are MCTS visit counts per action, `rootScore` is the root value already in -1 to 1. */
+  case VisitCounts
+
 final class ShardWriter(
     root: Path,
     boundaries: GameBoundaries,
-    samplesPerShard: Int
+    samplesPerShard: Int,
+    signal: PolicySignal = PolicySignal.SearchScores
 ):
 
   private val featureLength = StateEncoder.featureLength(boundaries)
@@ -110,6 +126,7 @@ final class ShardWriter(
        |  "featureLength": $featureLength,
        |  "policySize": $policySize,
        |  "actionFingerprint": ${ActionIndex.orderingFingerprint},
+       |  "policySignal": "${signal.toString}",
        |  "sampleCount": $totalWritten,
        |  "arrays": {
        |    "features": { "file": "features.f32.gz", "dtype": "<f4", "shape": [$featureLength] },

@@ -1,6 +1,7 @@
 package be.doeraene.mad.ai.nn.mcts
 
 import scala.collection.mutable
+import scala.util.Random
 
 import be.doeraene.mad.ai.nn.{ActionIndex, Canonical}
 import be.doeraene.mad.game.{GameAction, GameState, Team}
@@ -18,11 +19,25 @@ import be.doeraene.perf.NatArray
   *   how many pretend-lost visits to hang on an edge while a leaf below it is out for evaluation. Zero
   *   would make a whole batch take the same path.
   */
+/** Exploration noise mixed into the root's priors, for self-play only.
+  *
+  * @param alpha
+  *   Dirichlet concentration. Below 1 the draw is lumpy, which is what is wanted: a handful of moves
+  *   boosted a lot, rather than every move nudged a little.
+  * @param weight
+  *   how much of the root prior the noise replaces.
+  */
+final case class RootNoise(alpha: Double = 0.3, weight: Double = 0.25)
+
 final case class SearchConfig(
     simulations: Int = 400,
     batchSize: Int = 16,
     explorationConstant: Double = 1.4,
-    virtualLoss: Int = 1
+    virtualLoss: Int = 1,
+    /** Left off for play and for benchmarking, where the strongest move is wanted and reproducibility
+      * matters. Self-play turns it on; see [[RootNoise]].
+      */
+    rootNoise: Option[RootNoise] = None
 )
 
 /** Monte-Carlo tree search, driven from outside rather than driving itself.
@@ -47,7 +62,7 @@ final case class SearchConfig(
   * No Dirichlet noise at the root: this plays, it does not generate training data. Self-play will want
   * it, and that is where it belongs.
   */
-final class SearchTree(rootState: GameState, config: SearchConfig):
+final class SearchTree(rootState: GameState, config: SearchConfig, random: Random = Random(0L)):
 
   import SearchTree.*
 
@@ -103,6 +118,10 @@ final class SearchTree(rootState: GameState, config: SearchConfig):
       val path       = inFlight(index)
       val evaluation = evaluations(index)
       path.leaf.expand(evaluation.policyLogits)
+      // The root is expanded like any other leaf, on the first simulation, so this is the moment its
+      // priors exist and can be perturbed.
+      if (path.leaf eq root) && config.rootNoise.isDefined then
+        root.mixInNoise(config.rootNoise.get, random)
       backup(path, evaluation.value.toDouble)
       simulationsFinished += 1
       index += 1
@@ -131,6 +150,28 @@ final class SearchTree(rootState: GameState, config: SearchConfig):
 
   /** What the search thinks the root position is worth, for the side to move. */
   def rootValue: Double = if root.visits == 0 then 0.0 else root.valueSum / root.visits
+
+  /** Picks a move from the visit counts, with `temperature` deciding how much to explore.
+    *
+    * Zero means always the most-visited move, which is what a game being played for real wants. Self-play
+    * wants the opening plies sampled instead: with a deterministic pick, a given network plays one game
+    * per opening and the training set is that one game over and over.
+    */
+  def sampleAction(temperature: Double, sampler: Random): GameAction =
+    val visits = rootVisits
+    require(visits.nonEmpty, "the search has not expanded the root yet")
+    if temperature <= 0.0 then bestAction
+    else
+      val weights = visits.map((_, count) => math.pow(count.toDouble, 1.0 / temperature))
+      val total   = weights.sum
+      if total <= 0.0 then bestAction
+      else
+        var target = sampler.nextDouble() * total
+        var index  = 0
+        while index < weights.length - 1 && target >= weights(index) do
+          target -= weights(index)
+          index += 1
+        visits(index)._1
 
   private def descend(): Path =
     val steps = mutable.ArrayBuffer.empty[Step]
@@ -241,6 +282,14 @@ object SearchTree:
         childVirtual = new Array[Int](count)
         children = new Array[Node](count)
         expanded = true
+
+    /** Replaces part of the prior with a Dirichlet draw, in place. */
+    def mixInNoise(noise: RootNoise, random: Random): Unit =
+      val drawn = Dirichlet.symmetric(priors.length, noise.alpha, random)
+      var index = 0
+      while index < priors.length do
+        priors(index) = ((1.0 - noise.weight) * priors(index) + noise.weight * drawn(index)).toFloat
+        index += 1
 
     def childAt(index: Int): Node =
       val existing = children(index)
