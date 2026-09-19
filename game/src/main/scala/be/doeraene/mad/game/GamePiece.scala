@@ -131,7 +131,17 @@ object GamePiece:
   val red221  = GamePiece(2, 2, 1, Team.Red)
   val red222  = GamePiece(2, 2, 2, Team.Red)
 
-  val pieces: Set[GamePiece] = Set(
+  /** All 16 pieces, in a pinned order: the 8 blue ones by increasing number of 2s, then the 8 red ones in the matching
+    * order, so that `orderedPieces(i)` and `orderedPieces(i + 8)` always have the same stats and opposite teams.
+    *
+    * This order is a wire format, not an implementation detail. It fixes the input plane layout of
+    * [[be.doeraene.mad.ai.nn.StateEncoder]] and, through the action generators in [[GameAction]], the order of
+    * [[GameAction.allActions]] and hence the policy head layout of any trained network. It used to be derived from the
+    * iteration order of a `Set`, which leaked hash order into both: a Scala or JDK upgrade could silently permute a
+    * trained model's inputs and outputs with no compile error and no test failure. `PinnedOrderSpecs` pins it; do not
+    * reorder.
+    */
+  val orderedPieces: Vector[GamePiece] = Vector(
     blue111,
     blue112,
     blue121,
@@ -150,7 +160,17 @@ object GamePiece:
     red222
   )
 
-  val piecesByIndex: Map[Int, GamePiece] = pieces.zipWithIndex.map(_.swap).toMap
+  /** Number of pieces per team, and therefore the offset between a piece and its [[otherTeamCounterparts]] in
+    * [[orderedPieces]].
+    */
+  val piecesPerTeam: Int = orderedPieces.length / 2
+
+  val pieces: Set[GamePiece] = orderedPieces.toSet
+
+  val piecesByIndex: Map[Int, GamePiece] = orderedPieces.zipWithIndex.map(_.swap).toMap
+
+  /** Inverse of [[piecesByIndex]]. */
+  val pieceIndex: Map[GamePiece, Int] = orderedPieces.zipWithIndex.toMap
 
   val oppositePieces: Map[GamePiece, GamePiece] = Map(
     blue111 -> blue222,
@@ -171,11 +191,29 @@ object GamePiece:
     red222  -> red111
   )
 
-  val rotationPools: NatArray[Set[GamePiece]] = NatArray(
-    Set(blue112, blue121, blue211),
-    Set(blue122, blue212, blue221),
-    Set(red112, red121, red211),
-    Set(red122, red212, red221)
+  /** Maps each piece to the piece with the very same stats on the other team.
+    *
+    * This is the piece map of the vertical mirror used to canonicalise a [[GameState]] to "red is always to move" (see
+    * [[be.doeraene.mad.ai.nn.Canonical]]). Not to be confused with [[oppositePieces]], which stays within a team and
+    * flips the stats instead.
+    */
+  val otherTeamCounterparts: Map[GamePiece, GamePiece] = orderedPieces.map { piece =>
+    piece -> GamePiece(piece.movement, piece.attack, piece.defence, piece.team.otherTeam)
+  }.toMap
+
+  /** The rotation pools, each as a pinned ordered triple rather than a `Set`.
+    *
+    * [[GameAction.allRotations]] builds its actions by indexing into these, so the order within a pool ends up in the
+    * policy head layout. A 3-element `Set` happens to preserve insertion order today, but nothing guarantees it will
+    * keep doing so. See the note on [[orderedPieces]].
+    */
+  val orderedRotationPools: Vector[Vector[GamePiece]] = Vector(
+    Vector(blue112, blue121, blue211),
+    Vector(blue122, blue212, blue221),
+    Vector(red112, red121, red211),
+    Vector(red122, red212, red221)
   )
+
+  val rotationPools: NatArray[Set[GamePiece]] = NatArray.from(orderedRotationPools.map(_.toSet))
 
   def fromPrettyPrint(prettyPrint: String): Option[GamePiece] = pieces.find(_.prettyPrint == prettyPrint)

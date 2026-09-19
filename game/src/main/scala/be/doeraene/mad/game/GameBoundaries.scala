@@ -60,6 +60,25 @@ sealed trait GameBoundaries {
     col <- 0 until lastCol
   } yield Position(row, col)).toList.flatten
 
+  /** Reflects a position across the horizontal mid-line of the board, keeping its column.
+    *
+    * Together with swapping the two teams this is the symmetry that lets a network see every position from the mover's
+    * point of view (see [[be.doeraene.mad.ai.nn.Canonical]]). Defined here rather than next to the rest of the AI code
+    * because `Position` is only transparent inside this trait.
+    *
+    * Only meaningful on a board whose shape is [[isVerticallySymmetric]], which all four current boundaries are.
+    */
+  def mirrorVertically(position: Position): Position = (lastRow - 1 - position._1, position._2)
+
+  /** Whether the playable squares of this board are unchanged by [[mirrorVertically]].
+    *
+    * A precondition of the canonicalisation: on an asymmetric board the mirror of a legal position could fall in a
+    * hole.
+    */
+  lazy val isVerticallySymmetric: Boolean = (0 until lastRow).forall { row =>
+    (0 until lastCol).forall(col => isExistingPosition(row, col) == isExistingPosition(lastRow - 1 - row, col))
+  }
+
   lazy val rows: Vector[Vector[Option[Position]]] = for {
     row <- (0 until lastRow).toVector
   } yield for {

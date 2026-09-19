@@ -87,6 +87,35 @@ final class GameState(
   /** Returns which team should play now. */
   def turnOfTeam: Team = if turnNumber % 2 == 0 then Team.Blue else Team.Red
 
+  /** The same position seen from the other side: every piece is reflected across the horizontal mid-line and handed to
+    * the other team, and it becomes the other team's turn.
+    *
+    * All four [[GameBoundaries]] have vertically symmetric shapes *and* point-reflected starting positions, so this is
+    * a genuine symmetry of the game. It is what lets a network be trained on a single point of view (see
+    * [[be.doeraene.mad.ai.nn.Canonical]]), and it doubles as free data augmentation. The property that matters is that
+    * it commutes with playing: for a legal `action`,
+    * {{{
+    *   action(this).mirrored == ActionIndex.mirror(action)(this.mirrored)
+    * }}}
+    *
+    * [[turnNumber]] therefore has to shift by exactly one - the mirrored game is the same game with the colours
+    * swapped, which is to say the game where the other team moved first - and not, say, swap within its pair. That
+    * makes the shift the one thing about this that is not an involution: `mirrored.mirrored` has the same pieces and
+    * the same team to move as `this`, with [[turnNumber]] two higher.
+    *
+    * It also leaves the opening plies inexact under [[withInitialSpecialRule]]. At `turnNumber == 2` the mover has yet
+    * to play, but its mirror image lands on turn 3, where [[teamAlreadyPlayed]] says it has - and "nobody has moved
+    * yet" simply is not the colour-swap of "one side has". Mirroring twice shifts by two, which breaks turn 1 the same
+    * way. Every later turn mirrors faithfully, and so does every turn at all once the special rule is off;
+    * [[be.doeraene.mad.ai.nn.Canonical.mirrorIsExact]] is that condition.
+    */
+  lazy val mirrored: GameState = copy(
+    pieces = pieces.map((piece, position) =>
+      GamePiece.otherTeamCounterparts(piece) -> gameBoundaries.mirrorVertically(position)
+    ),
+    turnNumber = turnNumber + 1
+  )
+
   /** Returns the winning [[Team]], if any. */
   def maybeWinner: Option[Team] = (pieceIsAlive(blue111), pieceIsAlive(red111)) match {
     case (true, false) => Some(Team.Blue)
@@ -95,7 +124,7 @@ final class GameState(
   }
 
   /** Returns whether the game has ended. */
-  def ended: Boolean = turnsSinceLastPieceDied >= 30 || maybeWinner.isDefined
+  def ended: Boolean = turnsSinceLastPieceDied >= GameState.drawAfterTurnsWithoutDeath || maybeWinner.isDefined
 
   /** Returns the list of valid [[GameAction]] given this [[GameState]]. */
   def allValidActions: NatArray[GameAction] = turnOfTeam match {
@@ -156,6 +185,9 @@ end GameState
 object GameState:
 
   type AnyGameState = GameState
+
+  /** The game is a draw once this many turns have gone by without a piece dying. */
+  val drawAfterTurnsWithoutDeath: Int = 30
 
   def initial6By4GameState(withInitialSpecialRule: Boolean): GameState =
     initialGameStateWithBoundaries(GameBoundaries.OriginalSixByFour(), withInitialSpecialRule)
