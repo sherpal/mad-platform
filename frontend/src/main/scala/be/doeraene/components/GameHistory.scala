@@ -5,7 +5,7 @@ import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.webcomponents.ui5.*
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
-import be.doeraene.models.{GameHistory as GameHistoryModel, WithTime}
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
 import org.scalajs.dom
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 
@@ -26,7 +26,7 @@ object GameHistory:
       initialGameState: GameState,
       actionsSignal: Signal[List[WithTime[GameAction]]],
       team: Team,
-      isAgainstAI: Boolean
+      difficulty: Int
   ): HtmlElement = div(
     marginBottom := "30px",
     Title.h3("Game History"),
@@ -39,7 +39,7 @@ object GameHistory:
           statesAndActions,
           actionsSignal.map(actions => GameHistoryModel(initialGameState, actions.toVector)),
           team,
-          isAgainstAI
+          difficulty
         )
       }
   )
@@ -103,7 +103,7 @@ object GameHistory:
       statesAndActions: Signal[(GameState, GameAction)],
       fullHistorySignal: Signal[GameHistoryModel],
       team: Team,
-      isAgainstAI: Boolean
+      difficulty: Int
   ) = detailsTag(
     marginBottom := "5px",
     summaryTag(
@@ -137,9 +137,9 @@ object GameHistory:
               link.href = "/" ++ playAIGame.createUrlString(
                 (),
                 (
-                  Some((history.rewindTo(turnNumber), Some(team))),
+                  Some(history.rewindTo(turnNumber)),
                   history.gameType,
-                  history.withInitialSpecialRule
+                  AIGameOption(Some(team), difficulty, history.withInitialSpecialRule)
                 )
               )
               link.target = "blank"

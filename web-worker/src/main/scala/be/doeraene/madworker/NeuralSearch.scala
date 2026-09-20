@@ -38,13 +38,30 @@ object NeuralSearch:
     }
 
   /** Picks a move for `state`, and returns it with what the search thought the position was worth. */
+  /** The board the shipped network was trained for.
+    *
+    * Not a configuration option: the model's input is 19 x rows x cols and its heads end in a Linear
+    * over rows * cols cells, so the board size is baked into the weights. Another size is not a harder
+    * position, it is a tensor onnxruntime refuses.
+    */
+  val trainedFor: GameBoundaries.GameType = GameBoundaries._6by4
+
   def bestAction(
       state: GameState,
       simulations: Int,
       modelUrl: String,
       assetBase: String
   ): Future[(GameAction, Double)] =
-    load(modelUrl, assetBase).flatMap { ready =>
+    if state.gameType != trainedFor then
+      /* Caught here rather than left to onnxruntime, which would report a dimension mismatch and leave
+       * whoever reads it to work out that the board is the reason. Callers are expected to check first -
+       * see AIGameView - so reaching this is a bug, and it should say so. */
+      Future.failed(
+        IllegalArgumentException(
+          s"the network was trained for the ${trainedFor.value} board and cannot play ${state.gameType.value}"
+        )
+      )
+    else load(modelUrl, assetBase).flatMap { ready =>
       val config = SearchConfig(simulations = simulations, batchSize = 16)
       val tree   = SearchTree(state, config)
 

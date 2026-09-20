@@ -16,7 +16,7 @@ object RouteDefinitions:
 
   val againstAI = base / "against-ai"
   val playAIGame =
-    (againstAI / "play") ? ((gameHistoryParam & teamParam).? & gameTypeParam & withInitialSpecialRuleParam)
+    (againstAI / "play") ? (gameHistoryParam.? & gameTypeParam & gameOptionsParam)
 
   private val imagesMad = base / "assets" / "images-mad"
 

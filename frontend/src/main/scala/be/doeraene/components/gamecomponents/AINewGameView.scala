@@ -6,8 +6,12 @@ import urldsl.language.dummyErrorImpl.*
 import com.raquo.laminar.api.L.*
 import be.doeraene.mad.game.*
 import be.doeraene.utils.communication.MadTranslators.given
-import be.doeraene.models.GameHistory as GameHistoryModel
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel}
 import be.doeraene.mad.game.GameBoundaries
+import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.scalajs.dom.HTMLDivElement
+import urldsl.errors.DummyError
+import urldsl.language.PathSegment
 //import be.doeraene.components.material.{Icon, ListItem, Select, Switch}
 import be.doeraene.components.router.Link
 import be.doeraene.components.router.Router.router
@@ -18,9 +22,9 @@ import be.doeraene.mad.game.GameBoundaries.GameType
 
 object AINewGameView {
 
-  def here = againstAI / "new-game"
+  def here: PathSegment[Unit, DummyError] = againstAI / "new-game"
 
-  def apply() = {
+  def apply(): ReactiveHtmlElement[HTMLDivElement] = {
 
     val chosenGameType: Var[GameBoundaries.GameType] = Var(GameBoundaries._5by5)
     val unrestrictedMoveOnFirstTurnVar: Var[Boolean] = Var(true)
@@ -68,6 +72,56 @@ object AINewGameView {
       )
     )
 
+    val turnAhead = Var(4)
+    /* Defaults to the network because it is simply the stronger player now: searching over it beats the
+     * minimax at depth 4, which is the minimax's own best setting. The old engine stays selectable -
+     * it is what every previous game was played against, and it is the only one that works if the model
+     * has not been fetched. */
+    val useNeural   = Var(true)
+    val simulations = Var(800)
+
+    val difficultyLevelVar = Var(3)
+
+    def difficultyLevelSelector =
+      p(
+        className := "settings-row",
+        "Difficulty level: ",
+        Select(
+          marginLeft := "20px",
+          _.option(
+            "1 (easy)",
+            Select.option.value     := "1",
+            Select.option.selected <-- difficultyLevelVar.signal.map(_ == 1)
+          ),
+          _.option(
+            "2 (medium)",
+            Select.option.value     := "2",
+            Select.option.selected <-- difficultyLevelVar.signal.map(_ == 2)
+          ),
+          _.option(
+            "3 (hard)",
+            Select.option.value     := "3",
+            Select.option.selected <-- difficultyLevelVar.signal.map(_ == 3)
+          ),
+          child.maybe <-- chosenGameType.signal.map(gameType =>
+            Option.when(gameType == GameBoundaries._6by4)(
+              Select.option(
+                "4 (very hard)",
+                Select.option.value     := "4",
+                Select.option.selected <-- difficultyLevelVar.signal.map(_ == 4)
+              )
+            )
+          ),
+          _.events.onChange
+            .map(_.detail.selectedOption.value.toOption.get.toInt) --> difficultyLevelVar.writer,
+          onMountCallback(_ => difficultyLevelVar.set(3)),
+          chosenGameType.signal.changes.map(gameType =>
+            if gameType != GameBoundaries._6by4 then 3 else 4
+          ) --> difficultyLevelVar
+            .updater[Int](_.min(_))
+        )
+      )
+
     div(
       className := "AINewGameView",
       Title.h1("Challenge Blue Madness!"),
@@ -76,11 +130,16 @@ object AINewGameView {
         "Select your game mode: ",
         selectGameMode
       ),
+      difficultyLevelSelector,
       p(className := "settings-row", "Unrestricted moves on the first turn:", switchInitialSpecialRule),
       p(
-        startGameBus.events.sample(chosenGameType.signal, unrestrictedMoveOnFirstTurnVar.signal.map(!_)) --> {
-          case (gameType: GameBoundaries.GameType, specialRule: Boolean) =>
-            router.moveTo("/" ++ playAIGame.createUrlString((), (Option.empty, gameType, specialRule)))
+        startGameBus.events.sample(
+          chosenGameType.signal,
+          difficultyLevelVar.signal,
+          unrestrictedMoveOnFirstTurnVar.signal.map(!_)
+        ) --> { case (gameType: GameBoundaries.GameType, difficulty: Int, specialRule: Boolean) =>
+          val gameOption = AIGameOption(Option.empty, difficulty, specialRule)
+          router.moveTo("/" ++ playAIGame.createUrlString((), (Option.empty[GameHistoryModel], gameType, gameOption)))
         },
         PrimaryButton(
           Val("Start game"),

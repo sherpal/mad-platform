@@ -3,31 +3,32 @@ package be.doeraene.components.gamecomponents
 import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
 import be.doeraene.communication.AIApi.*
-import be.doeraene.models.{GameHistory as GameHistoryModel, PlayerName, WithTime}
-
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
 import com.raquo.laminar.api.L.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.Random
 
 object AIGameView:
 
-  def apply(playerName: PlayerName, gameHistory: GameHistoryModel, maybePlayerTeam: Option[Team]): HtmlElement = {
+  def apply(playerName: PlayerName, gameHistory: GameHistoryModel, gameOption: AIGameOption): HtmlElement = {
 
-    val playerTeam       = maybePlayerTeam.getOrElse(if scala.util.Random.nextBoolean() then Team.Red else Team.Blue)
+    val playerTeam =
+      gameOption.maybePlayerTeam.getOrElse(if scala.util.Random.nextBoolean() then Team.Red else Team.Blue)
     val initialGameState = gameHistory.initialGameState
 
-    val turnAhead = Var(4)
+    /* The network is trained for one board and cannot play any other. Its input is 19 x rows x cols and
+     * its heads end in a Linear over rows * cols cells, so a 5x5 board is not a harder problem for it -
+     * it is a shape its weights have no slot for, and onnxruntime rejects the tensor rather than
+     * guessing. The minimax has no such limit, so on every other board it is not the fallback, it is
+     * the only player there is. At this difficulty it searches to depth 4, which is its own strongest
+     * setting, so nothing is lost but the network. */
+    val neuralPlaysThisBoard = initialGameState.gameType == GameBoundaries._6by4
 
     val aFunction = (gameState: GameState) => gameState.pieces.size * (22 - gameState.pieces.size) / 150.0
 
     val aiProgress = Var(0)
-
-    /* Defaults to the network because it is simply the stronger player now: searching over it beats the
-     * minimax at depth 4, which is the minimax's own best setting. The old engine stays selectable -
-     * it is what every previous game was played against, and it is the only one that works if the model
-     * has not been fetched. */
-    val useNeural   = Var(true)
-    val simulations = Var(800)
 
     val playerChoosesNextGameActionBus: EventBus[GameAction] = new EventBus
     val aiChoosesNextGameActionBus: EventBus[GameState]      = new EventBus
@@ -38,15 +39,23 @@ object AIGameView:
       .merge(
         playerChoosesNextGameActionBus.events,
         aiChoosesNextGameActionBus.events
-          .withCurrentValueOf(turnAhead.signal, useNeural.signal, simulations.signal)
-          .flatMapSwitch { (gs, t, neural, sims) =>
+          .flatMapSwitch { gs =>
             EventStream.fromFuture(
-              if neural then
+              if gameOption.difficultyLevel < 4 || !neuralPlaysThisBoard then {
+                askNextAction(
+                  gameOption.turnAhead,
+                  aFunction(gs),
+                  gs,
+                  progress => aiProgress.update(_ => progress)
+                )
+              } else {
+                val sims = 800
                 /* The search reports nothing until it is finished, so there is no honest progress to
                  * show - a bar creeping along would be made up. Jump to full when the move arrives. */
                 aiProgress.set(0)
-                askNeuralAction(gs, sims).andThen { case _ => aiProgress.set(100) }
-              else askNextAction(t, aFunction(gs), gs, progress => aiProgress.update(_ => progress))
+                (if gs.turnNumber <= 2 then Future.successful(Random.shuffle(gs.allValidActions).head)
+                 else askNeuralAction(gs, sims)).andThen { case _ => aiProgress.set(100) }
+              }
             )
           }
       )
@@ -71,48 +80,9 @@ object AIGameView:
         Some(aiProgress.signal),
         playerName,
         PlayerName.AIPlayerName,
+        difficulty = gameOption.difficultyLevel,
         playerThinkingTimes,
         aiThinkingTimes
-      ),
-      div(
-        paddingTop.px    := 20,
-        paddingBottom.px := 10,
-        "Engine: ",
-        select(
-          controlled(
-            value <-- useNeural.signal.map(if _ then "neural" else "minimax"),
-            onChange.mapToValue --> useNeural.writer.contramap[String](_ == "neural")
-          ),
-          option(value := "neural", "Neural network"),
-          option(value := "minimax", "Minimax")
-        )
-      ),
-      div(
-        paddingBottom.px := 10,
-        child <-- useNeural.signal.map { neural =>
-          if neural then
-            div(
-              "Strength (simulations per move): ",
-              select(
-                controlled(
-                  value <-- simulations.signal.map(_.toString),
-                  onChange.mapToValue --> simulations.writer.contramap[String](_.toInt)
-                ),
-                List(200, 400, 800, 1600, 3200).map(count => option(value := count.toString, count.toString))
-              )
-            )
-          else
-            div(
-              "Level (Turns ahead for the AI): ",
-              select(
-                controlled(
-                  value <-- turnAhead.signal.map(_.toString),
-                  onChange.mapToValue --> turnAhead.writer.contramap[String](_.toInt)
-                ),
-                (1 to 5).toList.map(level => option(value := level.toString, level.toString))
-              )
-            )
-        }
       ),
       onMountBind(ctx =>
         gameStateSignal --> ((gs: GameState) =>

@@ -7,7 +7,7 @@ import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
-import be.doeraene.models.{GameHistory as GameHistoryModel, WithTime}
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
 import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 import com.raquo.laminar.api.L.*
@@ -81,6 +81,12 @@ given Printer[GameBoundaries.GameType] with
 val gameTypeParam = param[GameBoundaries.GameType]("game-type")
 
 val withInitialSpecialRuleParam = param[Boolean]("initial-special-rule")
+
+given FromString[AIGameOption, DummyError] = (str: String) =>
+  io.circe.parser.decode[AIGameOption](dom.window.atob(str)).left.map(_ => DummyError.dummyError)
+given Printer[AIGameOption] = (option: AIGameOption) => dom.window.btoa(option.asJson.noSpaces)
+
+val gameOptionsParam = param[AIGameOption]("game-options")
 
 def extractGameHistory(files: jszip.Files)(using ExecutionContext): Future[GameHistoryModel] = {
   val initialGameStateFile = files.files.values

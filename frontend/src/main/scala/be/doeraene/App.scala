@@ -6,15 +6,14 @@ import org.scalajs.dom
 import be.doeraene.components.router.*
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.components.gamecomponents.*
-import be.doeraene.models.PlayerName
-import be.doeraene.components.{moveToPath, withInitialSpecialRuleParam, Constants}
+import be.doeraene.models.{AIGameOption, GameHistory, PlayerName}
+import be.doeraene.components.{moveToPath, Constants}
 import urldsl.language.dummyErrorImpl.endOfSegments
-import be.doeraene.models.GameHistory
 import org.scalajs.dom
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import be.doeraene.components
-import be.doeraene.webcomponents.ui5.{Link => _, *}
+import be.doeraene.webcomponents.ui5.{Link as _, *}
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 
 object App:
@@ -37,8 +36,8 @@ object App:
         className := "app-bar",
         _.slots.startContent := img(
           className := "app-bar-favicon",
-          src        := devProdPath("/favicon.png"),
-          widthAttr  := 30
+          src       := devProdPath("/favicon.png"),
+          widthAttr := 30
         ),
         _.slots.startContent := Icon(
           _.name := IconName.home,
@@ -85,18 +84,19 @@ object App:
             Route(AILoadGameView.here, () => AILoadGameView()),
             Route(
               playAIGame,
-              { (_: Unit, info: (Option[(GameHistory, Option[Team])], GameBoundaries.GameType, Boolean)) =>
-                val gameType               = info._2
-                val maybeHistoryAndTeam    = info._1
-                val maybeTeam              = maybeHistoryAndTeam.flatMap(_._2)
-                val withInitialSpecialRule = info._3
+              { (_: Unit, info: (Option[GameHistory], GameBoundaries.GameType, AIGameOption)) =>
+                val maybeHistory = info._1
+                val gameType     = info._2
+                val gameOptions  = info._3
 
                 val boundaries = GameBoundaries.gameBoundaryByGameType(gameType)
 
                 val empty =
-                  GameHistory.empty(GameState.initialGameStateWithBoundaries(boundaries, withInitialSpecialRule))
-                val history = maybeHistoryAndTeam.fold(empty)(_._1)
-                components.gamecomponents.AIGameView(PlayerName.HumanPlayerName(username), history, maybeTeam)
+                  GameHistory.empty(
+                    GameState.initialGameStateWithBoundaries(boundaries, gameOptions.withInitialSpecialRule)
+                  )
+                val history = maybeHistory.getOrElse(empty)
+                components.gamecomponents.AIGameView(PlayerName.HumanPlayerName(username), history, gameOptions)
               }
             )
           )
