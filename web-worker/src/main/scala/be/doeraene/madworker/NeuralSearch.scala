@@ -32,7 +32,22 @@ object NeuralSearch:
   def load(modelUrl: String, assetBase: String): Future[OnnxRuntime.Session] =
     session.getOrElse {
       OnnxRuntime.configure(assetBase)
-      val loading = OnnxRuntime.InferenceSession.create(modelUrl).toFuture
+      val loading = OnnxRuntime.InferenceSession.create(modelUrl).toFuture.recoverWith { case error =>
+        /* "protobuf parsing failed" means onnxruntime was handed bytes that are not a model, and it
+         * cannot say why. Two causes account for nearly every occurrence, and neither is obvious from
+         * the message: the file was checked out on Windows without a gitattributes marking it binary,
+         * so every LF in it became CRLF; or the URL 404ed and a dev server returned index.html. Both
+         * are worth naming here, because the error alone sends people looking at the model. */
+        Future.failed(
+          RuntimeException(
+            s"could not load the network from $modelUrl: ${error.getMessage}. " +
+              "If this says protobuf parsing failed, the bytes are not a model: check the file is " +
+              "exactly the size it is in the repository (a Windows checkout without .gitattributes " +
+              "rewrites LF as CRLF and corrupts it), and that the URL does not 404 into index.html.",
+            error
+          )
+        )
+      }
       session = Some(loading)
       loading
     }
