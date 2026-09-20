@@ -5,7 +5,7 @@ import be.doeraene.components.router.Router.router
 import be.doeraene.facades.jszip.JSZip
 import be.doeraene.frontendutils.{ChoseFileButton, PrimaryButton}
 import be.doeraene.mad.game.*
-import be.doeraene.models.GameHistory as GameHistoryModel
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel}
 import be.doeraene.webcomponents.ui5.*
 import be.doeraene.webcomponents.ui5.configkeys.ButtonDesign
 import com.raquo.laminar.api.L.*
@@ -28,9 +28,13 @@ object AILoadGameView {
           .createUrlString(
             (),
             (
-              Some((gameHistory, maybeTeam)),
+              Some(gameHistory),
               gameHistory.gameType,
-              gameHistory.withInitialSpecialRule
+              AIGameOption(
+                maybeTeam,
+                difficultyLevel = 3,
+                withInitialSpecialRule = gameHistory.withInitialSpecialRule
+              )
             )
           )
       )

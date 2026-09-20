@@ -21,6 +21,7 @@ object GameView {
       maybeAICompletion: Option[Signal[Int]],
       playerName: PlayerName,
       opponentPlayerName: PlayerName,
+      difficulty: Int,
       playerThinkingTimes: Signal[WithTime.time.Time],
       opponentThinkingTimes: Signal[WithTime.time.Time],
       modifiers: Modifier[HtmlElement]*
@@ -107,7 +108,7 @@ object GameView {
         initialGameState,
         allActionsSignal,
         playerTeam,
-        isAgainstAI = isAgainstAI
+        difficulty
       ),
       be.doeraene.frontendutils.notification(playNotifications.events, "Your turn!"),
       gameStateSignal.changes.filter(_.turnOfTeam == playerTeam).mapTo(()) --> playNotifications,
