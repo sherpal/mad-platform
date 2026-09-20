@@ -396,8 +396,8 @@ object DisplayGameState:
       actionObserver: Observer[Unit]
   ): HtmlElement = div(
     className := "pending-bonus-banner",
-    span(className := "pending-bonus-text", "First turn, you can decide to "),
-    span(className := "pending-bonus-skip", "pass the turn", onClick.mapToUnit --> actionObserver),
+    span(className := "pending-bonus-text", "First turn, Drag a piece to swap or rotate... "),
+    span(className := "pending-bonus-skip", "... or pass your turn", onClick.mapToUnit --> actionObserver),
     span(className := "pending-bonus-text", ".")
   )
 

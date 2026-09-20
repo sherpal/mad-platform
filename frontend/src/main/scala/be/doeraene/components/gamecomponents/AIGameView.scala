@@ -53,7 +53,16 @@ object AIGameView:
                 /* The search reports nothing until it is finished, so there is no honest progress to
                  * show - a bar creeping along would be made up. Jump to full when the move arrives. */
                 aiProgress.set(0)
-                (if gs.turnNumber <= 2 then Future.successful(Random.shuffle(gs.allValidActions).head)
+                (if gs.turnNumber <= 2 then
+                   Future.successful(
+                     Random
+                       .shuffle(gs.allValidActions.filter {
+                         case _: GameAction.PieceShiftingAction => true
+                         case _: GameAction.Identity            => true
+                         case _                                 => false
+                       })
+                       .head
+                   )
                  else askNeuralAction(gs, sims)).andThen { case _ => aiProgress.set(100) }
               }
             )
