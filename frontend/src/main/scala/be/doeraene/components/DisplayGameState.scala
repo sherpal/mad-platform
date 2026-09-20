@@ -306,12 +306,14 @@ object DisplayGameState:
       // A pending bonus (or a stale ambiguity popup) only ever makes sense for the *current* turn - if the real
       // game state moves on for any other reason (the text action list, a rewind, ...), it must not linger and
       // desync the board preview from reality.
-      gameStates.changes --> { (_: GameState) =>
-        pendingBonusVar.set(None)
-        ambiguousChoiceVar.set(None)
-      },
+      gameStates.changes.mapTo(None) --> Observer.combine(pendingBonusVar.writer, ambiguousChoiceVar.writer),
       child.maybe <-- pendingBonusVar.signal.map(
         _.map(renderPendingBonusBanner(_, dragActionObserver, pendingBonusVar))
+      ),
+      child.maybe <-- gameStates.map(gameState =>
+        Option.when(gameState.withInitialSpecialRule && gameState.turnNumber <= 2 && gameState.turnOfTeam == team) {
+          renderPassFirstTurn(dragActionObserver.contramap(_ => GameAction.Identity(team)))
+        }
       ),
       child <-- pendingBonusVar.signal
         .combineWith(maybeAdditionActionStream)
@@ -382,13 +384,22 @@ object DisplayGameState:
       span(className := "pending-bonus-text", "Row bonus available! Drag a piece to swap or rotate it..."),
       span(
         className := "pending-bonus-skip",
-        "...or just move, no bonus",
+        "...or end your turn, no bonus",
         onClick --> { (_: dom.MouseEvent) =>
           pendingBonusVar.set(None)
           dragActionObserver.onNext(pending.movement1)
         }
       )
     )
+
+  private def renderPassFirstTurn(
+      actionObserver: Observer[Unit]
+  ): HtmlElement = div(
+    className := "pending-bonus-banner",
+    span(className := "pending-bonus-text", "First turn, you can decide to "),
+    span(className := "pending-bonus-skip", "pass the turn", onClick.mapToUnit --> actionObserver),
+    span(className := "pending-bonus-text", ".")
+  )
 
   /** A small, slightly-displaced, semi-transparent image of `piece`, previewing that it is about to land on whatever
     * cell this is added to as a child.

@@ -59,16 +59,16 @@ object GameView {
           maybeSelectedPieceVar.updater[Option[GamePiece]] { (maybeCurrentlySelected, clickedOn) =>
             clickedOn.filterNot(maybeCurrentlySelected.contains)
           },
-        className  := "game-main-row",
-        display    := "flex",
-        alignItems := "start",
+        className := "game-main-row",
+        display.flex,
+        alignItems.start,
         div(
-          className      := "game-board-column",
-          display        := "flex",
-          justifyContent := "center",
-          flexDirection  := "column",
-          alignItems     := "center",
-          padding        := "20px",
+          className := "game-board-column",
+          display.flex,
+          justifyContent.center,
+          flexDirection.column,
+          alignItems.center,
+          padding.px := 20,
           PlayerFrame(
             opponentPlayerName,
             playerTeam.otherTeam,
@@ -86,17 +86,12 @@ object GameView {
             maybeSelectedPieceVar.signal,
             playerChosesActionWriter
           ),
-          PlayerFrame(playerName, playerTeam, playerIsPlaying, playerThinkingTimes, gameHasEndedSignal)
-        ),
-        DisplayPossibleActions(
-          playerTeam,
-          gameStateSignal,
-          playerChosesActionWriter,
-          displayGameActionBus.writer,
-          maybeAICompletion,
-          maybeHoveredPieceVar.signal.combineWith(maybeSelectedPieceVar.signal).map {
-            (maybeHoveredPiece, maybeSelectedPiece) => maybeSelectedPiece.orElse(maybeHoveredPiece)
-          }
+          PlayerFrame(playerName, playerTeam, playerIsPlaying, playerThinkingTimes, gameHasEndedSignal),
+          OpponentIsThinking(
+            gameStateSignal,
+            playerTeam,
+            maybeAICompletion
+          )
         ),
         GameEndedDisplay(
           playerTeam,
