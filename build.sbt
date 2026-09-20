@@ -140,13 +140,22 @@ def copyWorker(
     val _         = linkTask.value
     val outputDir = outputTask.value
     val root      = (ThisBuild / baseDirectory).value
-    val targetDir = root / "frontend" / "public" / "web-worker"
 
-    println(s"Copying worker files to $targetDir (from $outputDir)")
-
-    IO.copyDirectory(outputDir, targetDir)
-    copyOnnxRuntime(root)
+    // Only a warning if node_modules is not there yet: this task is what a developer runs while
+    // iterating, and failing it because they have not installed the frontend's dependencies would be
+    // obnoxious. `buildFrontend` requires it instead - see below.
+    copyWorkerInto(outputDir, root, onnxRuntimeRequired = false)
   }
+
+/** Copies the linked worker, and the onnxruntime it imports, into the directory Vite serves. */
+def copyWorkerInto(outputDir: File, root: File, onnxRuntimeRequired: Boolean): Unit = {
+  val targetDir = root / "frontend" / "public" / "web-worker"
+
+  println(s"Copying worker files to $targetDir (from $outputDir)")
+
+  IO.copyDirectory(outputDir, targetDir)
+  copyOnnxRuntime(root, onnxRuntimeRequired)
+}
 
 /** Puts onnxruntime-web next to the worker that imports it.
   *
@@ -161,12 +170,16 @@ def copyWorker(
   * another 69MB between them and nothing here asks for any of them. The model itself *is* committed,
   * under `frontend/public/nn`, since nothing can regenerate it.
   */
-def copyOnnxRuntime(root: File): Unit = {
+def copyOnnxRuntime(root: File, required: Boolean): Unit = {
   val source = root / "frontend" / "node_modules" / "onnxruntime-web" / "dist"
   val target = root / "frontend" / "public" / "web-worker" / "ort"
 
   if (!source.exists) {
-    println(s"[warn] $source is missing - run npm ci in frontend/, or the neural engine will not load")
+    val message =
+      s"$source is missing - run npm ci in frontend/, or the neural engine will not load"
+    // A production build that quietly ships without the runtime is far worse than one that stops: the
+    // site builds, deploys, and only fails when somebody actually tries to play against the network.
+    if (required) throw new IllegalStateException(message) else println(s"[warn] $message")
   } else {
     IO.createDirectory(target)
     val wanted = List(
@@ -202,7 +215,11 @@ Global / buildFrontend := Def.uncached {
   - run npm ci in the frontend directory (might not be required)
   - package the application with vite-js (output will be in the resources of the server sub-module)
    */
-  (Global / fullOptWorker).value
+  /* The worker is linked here but *not* copied yet. `.value` is hoisted to a task dependency, so
+   * calling fullOptWorker from this body would run the copy before npm ci below - and the copy has to
+   * pull onnxruntime-web out of node_modules, which on a clean checkout does not exist yet. That built
+   * cleanly, warned, and shipped a site whose neural engine could not load. */
+  val workerOutput = (`web-worker` / Compile / fullLinkJSOutput).value
   (frontend / Compile / fullLinkJS).value
 
   val dir = (ThisBuild / baseDirectory).value
@@ -214,6 +231,9 @@ Global / buildFrontend := Def.uncached {
   if (npmCiExit > 0) {
     throw new IllegalStateException(s"npm ci failed. See above for reason")
   }
+
+  // Now that node_modules exists, and before vite copies public/ into dist/.
+  copyWorkerInto(workerOutput, dir, onnxRuntimeRequired = true)
 
   val buildExit = Process(
     Utils.npm :: "run" :: "build" :: Nil,
