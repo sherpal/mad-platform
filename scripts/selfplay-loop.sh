@@ -2,7 +2,7 @@
 #
 # Runs the self-play loop unattended, for as many generations as asked.
 #
-#   scripts/selfplay-loop.sh [generations] [games] [simulations]
+#   scripts/selfplay-loop.sh [generations] [games] [simulations] [champion-dir] [first-generation]
 #
 # Each generation: play games against the current champion, retrain on the last two generations of
 # self-play, export, and let the arena decide whether the result is actually an improvement. Only a
@@ -27,10 +27,12 @@ mkdir -p "$DATA"
 
 say() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
 
-# The generation whose model is currently the best known player. Generation 1 came from the
-# supervised bootstrap and is where this picks up.
-champion_model="$DATA/gen1-model"
-first_new=2
+# The generation whose model is currently the best known player, and the number to give the first new
+# one. Both default to carrying on from generation 1, which is where the supervised bootstrap leaves
+# off - but starting a run from scratch means pointing these at whatever the bootstrap produced, so
+# they are arguments rather than constants.
+champion_model=${4:-$DATA/gen1-model}
+first_new=${5:-2}
 last_new=$((first_new + GENERATIONS - 1))
 
 say "=========================================================================="
