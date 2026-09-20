@@ -1,0 +1,27 @@
+# Git decides whether a file is binary by looking for a NUL byte in its first 8000 bytes, and nothing
+# else. An ONNX model opens with printable metadata - the producer name, a version string, the graph's
+# node names - so its first 8000 bytes contain no NUL at all and git files it as text. On Windows, where
+# core.autocrlf defaults to true, checking it out then rewrites every LF as CRLF: mad.onnx gains 5824
+# stray bytes in the middle of a protobuf and onnxruntime fails with "protobuf parsing failed"
+# (error code 7). The bytes in the repository are fine; only the working copy is mangled.
+#
+# Anyone who already has a mangled copy needs to force git to write it again, since git believes the
+# file is unmodified and will not touch it on its own:
+#
+#     del frontend\public\nn\mad.onnx
+#     git checkout -- frontend/public/nn/mad.onnx
+#
+*.onnx binary
+
+# The same trap in waiting, for formats whose headers are also mostly printable or that we may add
+# later. Cheaper to list than to rediscover.
+*.wasm binary
+*.pt    binary
+*.npz   binary
+*.gz    binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary
