@@ -2,7 +2,7 @@ package be.doeraene.cli
 
 import be.doeraene.mad.ai.{Player, TacticalWeights}
 import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
-import be.doeraene.mad.game.{GameState, Team}
+import be.doeraene.mad.game.{GameBoundaries, GameState, Team}
 import io.circe.Codec
 
 import java.nio.file.Paths
@@ -92,7 +92,8 @@ object GameConfig:
       minimaxDepth: Int,
       seed: Long,
       explorationRate: Double,
-      samplesPerShard: Int
+      samplesPerShard: Int,
+      board: String
   ) extends GameConfig
 
   /** Play a searching network against one of the minimax configurations, over the usual opening battery.
@@ -112,7 +113,8 @@ object GameConfig:
       minimaxDepth: Int,
       opponent: AIConfig,
       openings: Int,
-      seed: Long
+      seed: Long,
+      board: String
   ) extends GameConfig
 
   /** Generate training data by having a network play itself under search.
@@ -130,7 +132,8 @@ object GameConfig:
       simulations: Int,
       batchSize: Int,
       seed: Long,
-      samplesPerShard: Int
+      samplesPerShard: Int,
+      board: String
   ) extends GameConfig
 
   /** Play two networks against each other, to decide whether a newly trained one is actually better. */
@@ -139,8 +142,24 @@ object GameConfig:
       champion: String,
       simulations: Int,
       openings: Int,
-      seed: Long
+      seed: Long,
+      board: String
   ) extends GameConfig
+
+  /** Parses a board from a spaceless alias.
+    *
+    * [[GameBoundaries.GameType]]'s own names contain spaces ("5 by 5"), and sbt splits a command on
+    * whitespace before anything here sees it, so the real names cannot be typed as arguments. These
+    * aliases can.
+    */
+  def boardFromAlias(alias: String): GameBoundaries = alias.toLowerCase match {
+    case "6x4"           => GameBoundaries.originalSixByFour
+    case "5x5"           => GameBoundaries.defaultFiveByFive
+    case "4x6"           => GameBoundaries.defaultFourBySix
+    case "aztec"         => GameBoundaries.aztecDiamondBoundaries
+    case other =>
+      throw IllegalArgumentException(s"unknown board '$other'; expected one of 6x4, 5x5, 4x6, aztec")
+  }
 
   sealed trait AIConfig {
     def player(minimaxDepth: Int): MadPlayer
@@ -313,7 +332,8 @@ object GameConfig:
       minimaxDepth = Try(args(2).toInt).getOrElse(4),
       seed = Try(args(3).toLong).getOrElse(42L),
       explorationRate = Try(args(4).toDouble).getOrElse(0.05),
-      samplesPerShard = Try(args(5).toInt).getOrElse(65536)
+      samplesPerShard = Try(args(5).toInt).getOrElse(65536),
+      board = Try(args(6)).getOrElse("6x4")
     )
   }
 
@@ -336,7 +356,8 @@ object GameConfig:
       opponent = Try(args(3)).toOption.fold(AIConfig.Tactical())(io.circe.parser.decode[AIConfig](_).toTry.get),
       openings = Try(args(4).toInt).getOrElse(20),
       seed = Try(args(5).toLong).getOrElse(42L),
-      batchSize = Try(args(6).toInt).getOrElse(16)
+      batchSize = Try(args(6).toInt).getOrElse(16),
+      board = Try(args(7)).getOrElse("6x4")
     )
   }
 
@@ -359,7 +380,8 @@ object GameConfig:
       simulations = Try(args(3).toInt).getOrElse(400),
       seed = Try(args(4).toLong).getOrElse(42L),
       batchSize = Try(args(5).toInt).getOrElse(16),
-      samplesPerShard = Try(args(6).toInt).getOrElse(65536)
+      samplesPerShard = Try(args(6).toInt).getOrElse(65536),
+      board = Try(args(7)).getOrElse("6x4")
     )
   }
 
@@ -379,7 +401,8 @@ object GameConfig:
       champion = args(1),
       simulations = Try(args(2).toInt).getOrElse(400),
       openings = Try(args(3).toInt).getOrElse(20),
-      seed = Try(args(4).toLong).getOrElse(42L)
+      seed = Try(args(4).toLong).getOrElse(42L),
+      board = Try(args(5)).getOrElse("6x4")
     )
   }
 
