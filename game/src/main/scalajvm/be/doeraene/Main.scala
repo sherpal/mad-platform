@@ -194,8 +194,8 @@ import scala.util.Random
       java.nio.file.Files.writeString(resultFile, s"score=$bestScore/$batterySize\n$bestWeights\n")
       println(s"Saved to $resultFile")
 
-    case GameConfig.HarvestPositions(output, games, minimaxDepth, seed, explorationRate, samplesPerShard) =>
-      val boundaries = GameBoundaries.originalSixByFour
+    case GameConfig.HarvestPositions(output, games, minimaxDepth, seed, explorationRate, samplesPerShard, board) =>
+      val boundaries = GameConfig.boardFromAlias(board)
       val outputDir  = Paths.get(output)
       val harvestConfig = SupervisedHarvester.Config(
         games = games,
@@ -223,8 +223,10 @@ import scala.util.Random
 
       println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
 
-    case GameConfig.NeuralBenchmark(model, simulations, batchSize, minimaxDepth, opponentConfig, openings, seed) =>
-      val games      = benchmark.Benchmark.battery(openings, seed)
+    case GameConfig
+          .NeuralBenchmark(model, simulations, batchSize, minimaxDepth, opponentConfig, openings, seed, board) =>
+      val boundaries = GameConfig.boardFromAlias(board)
+      val games      = benchmark.Benchmark.battery(openings, seed, boundaries = boundaries)
       val opponent   = opponentConfig.player(minimaxDepth)
       val searchConf = mcts.SearchConfig(simulations = simulations, batchSize = batchSize)
 
@@ -233,13 +235,13 @@ import scala.util.Random
        * nothing and a network that had learnt plenty would both just look like "MCTS scores X". */
       val evaluator =
         if model == "uninformed" then mcts.BatchEvaluator.uninformed
-        else OnnxEvaluator(Paths.get(model), GameBoundaries.originalSixByFour)
+        else OnnxEvaluator(Paths.get(model), boundaries)
       try
         val label     = if model == "uninformed" then "UCT" else "Neural"
         val candidate = mcts.Mcts.player(evaluator, searchConf, name = label)
         println(
-          s"Benchmark: $simulations-simulation MCTS over $model vs $opponentConfig at depth $minimaxDepth, " +
-            s"over ${games.size} games"
+          s"Benchmark: $simulations-simulation MCTS over $model vs $opponentConfig at depth $minimaxDepth " +
+            s"on $board, over ${games.size} games"
         )
 
         val (report, time) = Player.timeIt(
@@ -258,8 +260,8 @@ import scala.util.Random
           case closeable: AutoCloseable => closeable.close()
           case _                        => ()
 
-    case GameConfig.SelfPlay(model, output, games, simulations, batchSize, seed, samplesPerShard) =>
-      val boundaries = GameBoundaries.originalSixByFour
+    case GameConfig.SelfPlay(model, output, games, simulations, batchSize, seed, samplesPerShard, board) =>
+      val boundaries = GameConfig.boardFromAlias(board)
       val outputDir  = Paths.get(output)
       val evaluator  = evaluatorFor(model, boundaries)
 
@@ -271,7 +273,7 @@ import scala.util.Random
           search = mcts.SearchConfig(simulations = simulations, batchSize = batchSize)
         )
 
-        println(s"Self-play: $games games of $simulations-simulation search over $model into $outputDir")
+        println(s"Self-play on $board: $games games of $simulations-simulation search over $model into $outputDir")
 
         val (_, time) = Player.timeIt(
           SelfPlayHarvester.harvest(
@@ -286,15 +288,15 @@ import scala.util.Random
         println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
       finally close(evaluator)
 
-    case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed) =>
-      val boundaries   = GameBoundaries.originalSixByFour
-      val games        = benchmark.Benchmark.battery(openings, seed)
+    case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed, board) =>
+      val boundaries   = GameConfig.boardFromAlias(board)
+      val games        = benchmark.Benchmark.battery(openings, seed, boundaries = boundaries)
       val searchConf   = mcts.SearchConfig(simulations = simulations)
       val challenger   = evaluatorFor(challengerPath, boundaries)
       val champion     = evaluatorFor(championPath, boundaries)
 
       try
-        println(s"Arena: $challengerPath vs $championPath at $simulations simulations, ${games.size} games")
+        println(s"Arena on $board: $challengerPath vs $championPath at $simulations sims, ${games.size} games")
         val (report, time) = Player.timeIt(
           benchmark.Benchmark.run(
             mcts.Mcts.player(challenger, searchConf, "challenger"),

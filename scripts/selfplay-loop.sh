@@ -2,7 +2,8 @@
 #
 # Runs the self-play loop unattended, for as many generations as asked.
 #
-#   scripts/selfplay-loop.sh [generations] [games] [simulations] [champion-dir] [first-generation]
+#   scripts/selfplay-loop.sh [generations] [games] [simulations] [champion-dir] [first-generation] \
+#                            [board] [data-dir] [benchmark-depth]
 #
 # Each generation: play games against the current champion, retrain on the last two generations of
 # self-play, export, and let the arena decide whether the result is actually an improvement. Only a
@@ -19,7 +20,11 @@ GAMES=${2:-8000}
 SIMS=${3:-600}
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DATA="$ROOT/data/nn"
+BOARD=${6:-6x4}
+# Each board needs its own models and harvests: a network's input is 19 x rows x cols, so a 5x5 model
+# and a 6x4 one are not interchangeable and must not land in the same directory.
+DATA=${7:-$ROOT/data/nn}
+BENCH_DEPTH=${8:-4}
 PYTHON="$ROOT/python/.venv/bin/python"
 LOG="$DATA/loop.log"
 
@@ -36,7 +41,8 @@ first_new=${5:-2}
 last_new=$((first_new + GENERATIONS - 1))
 
 say "=========================================================================="
-say "Self-play loop: generations $first_new..$last_new, $GAMES games at $SIMS sims"
+say "Self-play loop on $BOARD: generations $first_new..$last_new, $GAMES games at $SIMS sims"
+say "Data and models under $DATA"
 say "Champion to beat: $champion_model"
 say "=========================================================================="
 
@@ -48,7 +54,7 @@ for gen in $(seq "$first_new" "$last_new"); do
   say ""
   say "--- generation $gen: self-play -------------------------------------------"
   rm -rf "$data_dir"
-  if ! (cd "$ROOT" && sbt -batch "game/run self-play $champion_model/model.onnx $data_dir $GAMES $SIMS $((gen * 1000))" 2>&1 | grep -E "Wrote|rror" | tee -a "$LOG"); then
+  if ! (cd "$ROOT" && sbt -batch "game/run self-play $champion_model/model.onnx $data_dir $GAMES $SIMS $((gen * 1000)) 16 65536 $BOARD" 2>&1 | grep -E "Wrote|rror" | tee -a "$LOG"); then
     say "self-play failed; stopping with $champion_model still champion"
     exit 1
   fi
@@ -79,7 +85,7 @@ for gen in $(seq "$first_new" "$last_new"); do
 
   say ""
   say "--- generation $gen: arena vs champion -----------------------------------"
-  arena=$(cd "$ROOT" && sbt -batch "game/run arena $model_dir/model.onnx $champion_model/model.onnx $SIMS 20" 2>&1 | grep -E "^challenger|PROMOTE|keep the")
+  arena=$(cd "$ROOT" && sbt -batch "game/run arena $model_dir/model.onnx $champion_model/model.onnx $SIMS 20 42 $BOARD" 2>&1 | grep -E "^challenger|PROMOTE|keep the")
   echo "$arena" | tee -a "$LOG"
 
   if echo "$arena" | grep -q PROMOTE; then
@@ -89,12 +95,12 @@ for gen in $(seq "$first_new" "$last_new"); do
     say "generation $gen rejected; champion stays $champion_model"
   fi
 
-  # Against the hand-written engine at its strongest setting - the only measurement here that is not
-  # the network grading its own homework. See the note on depth 4 in the project notes: it beats
-  # depth 5, so this is the bar, not depth 5.
+  # Against the hand-written engine - the only measurement here that is not the network grading its own
+  # homework. Depth 4 is the bar on 6x4 because it beats depth 5 there; whether that holds on another
+  # board is an open question, hence the argument.
   say ""
-  say "--- generation $gen: champion vs minimax depth 4 -------------------------"
-  (cd "$ROOT" && sbt -batch "game/run nn-benchmark $champion_model/model.onnx 3200 4 {\"Tactical\":{}} 20" 2>&1 | grep -E "^Neural-|rror") | tee -a "$LOG"
+  say "--- generation $gen: champion vs minimax depth $BENCH_DEPTH ------------------"
+  (cd "$ROOT" && sbt -batch "game/run nn-benchmark $champion_model/model.onnx 3200 $BENCH_DEPTH {\"Tactical\":{}} 20 42 16 $BOARD" 2>&1 | grep -E "^Neural-|rror") | tee -a "$LOG"
 done
 
 say ""

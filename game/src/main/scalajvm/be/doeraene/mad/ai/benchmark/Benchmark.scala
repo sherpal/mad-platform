@@ -2,7 +2,7 @@ package be.doeraene.mad.ai.benchmark
 
 import be.doeraene.mad.ai.Player
 import be.doeraene.mad.ai.Player.MadPlayer
-import be.doeraene.mad.game.{GameAction, GameState, Team}
+import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
 import be.doeraene.perf.NatArray
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -19,16 +19,25 @@ import scala.collection.parallel.CollectionConverters.*
   */
 object Benchmark:
 
-  /** One game of the battery: an opening (as the pair of positioning-turn actions both sides are forced into) and which
-    * colour the candidate plays.
+  /** One game of the battery: an opening (as the pair of positioning-turn actions both sides are forced into), which
+    * colour the candidate plays, and the board it is played on.
+    *
+    * The board is carried by the game rather than passed alongside it, so a battery built for one board
+    * cannot be played on another - which is otherwise an easy mistake to make and a silent one, since
+    * the positioning-turn actions are board-independent and would apply happily to the wrong board.
     */
-  final case class BatteryGame(redOpening: GameAction, blueOpening: GameAction, candidateIsRed: Boolean)
+  final case class BatteryGame(
+      redOpening: GameAction,
+      blueOpening: GameAction,
+      candidateIsRed: Boolean,
+      boundaries: GameBoundaries
+  )
 
   /** The positioning-turn actions available to a team: stand pat, any permutation, any rotation. Deliberately taken
     * from the engine's own legality check rather than hard-coded, so this can't drift from the rules.
     */
-  private def openingActions(team: Team): NatArray[GameAction] =
-    val start  = GameState.initial6By4GameState(true)
+  private def openingActions(team: Team, boundaries: GameBoundaries): NatArray[GameAction] =
+    val start  = GameState.initialGameStateWithBoundaries(boundaries, withInitialSpecialRule = true)
     val forRed = start.allValidActions
     if team == Team.Red then forRed else forRed.head(start).allValidActions
 
@@ -37,10 +46,15 @@ object Benchmark:
     *   same seed with `skip = 0` and `skip = openingCount` are disjoint, which is what lets a tuner hill-climb on one
     *   slice and be honestly validated on another.
     */
-  def battery(openingCount: Int, seed: Long, skip: Int = 0): List[BatteryGame] =
+  def battery(
+      openingCount: Int,
+      seed: Long,
+      skip: Int = 0,
+      boundaries: GameBoundaries = GameBoundaries.originalSixByFour
+  ): List[BatteryGame] =
     val random      = new scala.util.Random(seed)
-    val redOptions  = openingActions(Team.Red).toVector
-    val blueOptions = openingActions(Team.Blue).toVector
+    val redOptions  = openingActions(Team.Red, boundaries).toVector
+    val blueOptions = openingActions(Team.Blue, boundaries).toVector
     val allPairs = (for {
       red  <- redOptions
       blue <- blueOptions
@@ -48,7 +62,9 @@ object Benchmark:
     val chosen =
       if skip == 0 && openingCount >= allPairs.size then allPairs
       else random.shuffle(allPairs).slice(skip, skip + openingCount)
-    chosen.flatMap((red, blue) => List(BatteryGame(red, blue, true), BatteryGame(red, blue, false)))
+    chosen.flatMap((red, blue) =>
+      List(BatteryGame(red, blue, true, boundaries), BatteryGame(red, blue, false, boundaries))
+    )
 
   final case class GameOutcome(candidateScore: Double, turns: Int)
 
@@ -64,7 +80,7 @@ object Benchmark:
       opponent: MadPlayer,
       game: BatteryGame
   ): GameOutcome =
-    val start         = GameState.initial6By4GameState(true)
+    val start         = GameState.initialGameStateWithBoundaries(game.boundaries, withInitialSpecialRule = true)
     val afterOpening  = game.blueOpening(game.redOpening(start))
     val redPlayer     = if game.candidateIsRed then candidate else opponent
     val bluePlayer    = if game.candidateIsRed then opponent else candidate
