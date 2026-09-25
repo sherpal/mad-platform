@@ -384,7 +384,7 @@ object DisplayGameState:
       span(className := "pending-bonus-text", "Row bonus available! Drag a piece to swap or rotate it..."),
       span(
         className := "pending-bonus-skip",
-        "...or end your turn, no bonus",
+        "or end your turn, no bonus",
         onClick --> { (_: dom.MouseEvent) =>
           pendingBonusVar.set(None)
           dragActionObserver.onNext(pending.movement1)
@@ -396,8 +396,8 @@ object DisplayGameState:
       actionObserver: Observer[Unit]
   ): HtmlElement = div(
     className := "pending-bonus-banner",
-    span(className := "pending-bonus-text", "First turn, Drag a piece to swap or rotate... "),
-    span(className := "pending-bonus-skip", "... or pass your turn", onClick.mapToUnit --> actionObserver),
+    span(className := "pending-bonus-text", "First turn, Drag a piece to swap or rotate..."),
+    span(className := "pending-bonus-skip", "or pass your turn", onClick.mapToUnit --> actionObserver),
     span(className := "pending-bonus-text", ".")
   )
 
@@ -530,7 +530,8 @@ object DisplayGameState:
                     className          <-- dropHighlightClass(candidates),
                     className          <-- hoverPreviewClass(candidates),
                     className          <-- occupantDimClass(candidates),
-                    child.maybe        <-- moveDestinationPreview(candidates).map(_.map(renderMovePreviewGhost)),
+                    child.maybe <-- moveDestinationPreview(candidates.filter(_.isLeft))
+                      .map(_.map(renderMovePreviewGhost)),
                     images(piece),
                     onMouseEnter.mapTo(Some(piece)) --> hoveredPieceObserver,
                     onMouseLeave.mapTo(None) --> hoveredPieceObserver,
