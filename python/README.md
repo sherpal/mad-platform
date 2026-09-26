@@ -13,7 +13,7 @@ the search that can quietly drift away from the one the network was trained agai
 ```
   Scala (JVM)                       Python                     Scala (JVM + Wasm)
   harvest-positions   ──shards──▶   train.py                            │
-  self-play                         export_onnx.py  ──mad.onnx──▶  engine + browser worker
+  self-play                         export_onnx.py  ──.onnx──▶  engine + browser worker
 ```
 
 ## What came out of it
@@ -51,6 +51,16 @@ flip. Four measures agree it is a ceiling rather than a bad run: the margin cont
 none to forty per cent, games get half again as long, and the network's agreement with its own search
 climbs, which is another way of saying the search has less left to teach it.
 
+**5x5 was trained the same way and behaved almost identically**: 20.0% against depth 4 from the
+bootstrap, 97.5% after two generations, 98.8% after five, with the same convergence signature on the
+same timescale. Two differences worth knowing. Flat-prior search scores 0% there against depth-3
+minimax, where it manages 6.3% on 6x4 - the bigger, more open board gives bare search nothing to work
+with, so the network carries more of the strength. And its generation 5 was still improving at 66.3%,
+so that board likely had another generation or two of headroom.
+
+Depth 4 beating depth 5 has now replicated on all three boards tried, which makes it a property of the
+hand-written engine rather than a quirk of one board.
+
 ## Setup
 
 ```bash
@@ -63,123 +73,57 @@ network is small - but the GPU turns a quarter of an hour into a couple of minut
 
 ---
 
-# Reproducing from scratch
+# Training a network for a board
 
-Every command below is run from the repository root unless it says otherwise. `data/` is gitignored, so
-harvests and checkpoints live there without cluttering the repo.
-
-Budget roughly **3 hours for step 1** and **2.5 hours per self-play generation** on 20 cores and a
-laptop GPU. Steps 1-4 give a playable engine; step 5 is what makes it strong.
-
-## 1. Harvest positions from the existing minimax
-
-Self-play from a randomly initialised network works, but it wastes days rediscovering things the
-hand-written engine already knows. Watching the minimax play itself gives a warm start, and - more
-useful early on - it proves the whole pipeline works against a baseline whose strength is known.
-
-```bash
-sbt "game/run harvest-positions ./data/nn/bootstrap 2400 3"
-```
-
-Arguments are `<output-dir> <games> [minimax-depth] [seed] [exploration-rate] [samples-per-shard]`.
-
-**This is the knob for "more data at the beginning".** 2400 games gives about 100k positions in three
-hours; the rate is roughly **9.4 positions/second at depth 3** on 20 cores, and positions scale linearly
-with games. Two things to know before turning it up:
-
-- **Depth costs far more than games.** Depth 4 is 5-10x slower than depth 3 for labels that are only
-  somewhat better. Depth 3 is the right setting unless you have a day to spare.
-- **The bootstrap was data-bound, not capacity-bound** - train top-1 reached 0.94 against a held-out
-  0.41 on 100k positions. So more games genuinely helps here, up to a point. 300-500k positions is a
-  reasonable target if you want a stronger start than this project had.
-
-The engine is deterministic, so diversity comes from a random opening of a few plies plus an occasional
-random move. The *labels* are always the engine's own scores for the position, never the random move
-that got played - labelling a position with a random move would teach the network to play randomly.
-
-## 2. Look at what you harvested
-
-```bash
-cd python && .venv/bin/python dataset.py ../data/nn/bootstrap
-```
-
-This ends with a fitted `--value-scale`, and it is worth reading rather than skipping. The scale
-converts the evaluator's arbitrary units into a predicted result. The units mean nothing on their own,
-and a first guess at this was wrong by a factor of ten, which quietly saturated two thirds of ordinary
-positions to +-1 and would have left the value head regressing on a constant.
-
-## 3. Train and export
+One command, start to finish:
 
 ```bash
 cd python
-.venv/bin/python train.py ../data/nn/bootstrap --out ../data/nn/model --value-scale 38
-.venv/bin/python export_onnx.py ../data/nn/model/model.pt
+.venv/bin/python pipeline.py --board 5x5
 ```
 
-Then check it, with `evaluate.py` rather than the training log:
+`pipeline.py` harvests positions from the minimax, trains on them, then runs self-play generations
+until they stop improving. Boards are `6x4`, `5x5`, `4x6`, `aztec`; each gets its own directory under
+`data/nn-<board>/`, because a network's input is 19 x rows x cols and models for different boards are
+not interchangeable. Budget 12-24 hours for the defaults.
 
-```bash
-.venv/bin/python evaluate.py ../data/nn/bootstrap ../data/nn/model/model.pt
-```
+It is safe to interrupt: completed stages are detected and skipped, so re-running the same command
+carries on where it left off. `--restart` throws the board's work away and begins again.
 
-Top-1 agreement is what training prints, but it scores playing a move the engine rated 9.9 exactly as
-badly as a blunder when the best was 10.0. **Regret** - how much evaluator score the network's favourite
-move gives up - and the top-k rates are what tell you whether this is a usable prior. Expect something
-like top-1/3/5/10 of 0.40/0.64/0.77/0.92 and a median regret under 1.0 from a 100k-position bootstrap.
-The value head should predict the winner about as well as the search it was distilled from; that part
-works easily. The policy head being mediocre is normal and is what the search is for.
+## What it checks, and why
 
-## 4. Check it plays
+Each of these is here because this project hit it.
 
-```bash
-sbt 'game/run nn-benchmark ./data/nn/model/model.onnx 800 3 {"Tactical":{}} 20'
-```
+| check | |
+|---|---|
+| beats a random player | **stops the run.** Below 90% the network is not weak, it is broken - a bad model and a broken encoding both lose to the minimax, and the win rate cannot tell them apart |
+| action fingerprints match | **stops the run.** A harvest and a model built against different orderings agree on every shape and disagree on every meaning |
+| which minimax depth is strongest | measured, not assumed. Depth 4 beats depth 5 on all three boards tried so far, so benchmarking against depth 5 would flatter every later result |
+| beats flat-prior search | warns if the network adds nothing over bare MCTS - which saves a day of self-play on a useless prior |
+| draw rate above 30% | warns: the value head has little left to learn from |
+| win/loss gap above 15 points | warns: suggests a colour bias rather than chance |
+| training vs held-out top-1 | warns it is data-bound - harvest more games, do not enlarge the network |
+| two rejected generations | stops. The loop has converged and further generations are wasted hours |
 
-Note the JSON is **unquoted** - `sbt` passes single quotes through verbatim and circe then fails to
-parse them. Arguments are `<model.onnx> [simulations] [minimax-depth] [opponent-json] [openings] [seed]`.
+Warnings are collected and reprinted in a summary at the end, because a 20-hour run scrolls a long way.
+`--force` pushes past a check that would otherwise stop things; it exists because "near-certainly
+pointless" is not "certainly", and you should not have to edit the script to overrule it.
 
-Two sanity checks worth running before trusting anything:
+## The knobs worth touching
 
-```bash
-# Should be close to 100%. If not, something is broken rather than weak.
-sbt 'game/run nn-benchmark ./data/nn/model/model.onnx 400 3 {"Random":{}} 10'
+`--bootstrap-games` (default 4800) is the main quality dial for the start, and the single longest step.
+More genuinely helps: the bootstrap is data-bound rather than capacity-bound. `--bootstrap-depth`
+(default 3) costs far more than games - depth 4 is 5-10x slower for labels only somewhat better.
 
-# The same search with flat priors and no value estimate. The network has to beat this to be
-# contributing anything at all - it scored 6.3% where the bootstrap network scored 20.0%.
-sbt 'game/run nn-benchmark uninformed 200 3 {"Tactical":{}} 20'
-```
+`--simulations` (default 600) is what makes the teacher stronger than the student it is teaching. If
+generations stop improving while the board still feels unsolved, this is the knob, not the game count.
 
-## 5. Self-play
+## Shipping the result
 
-This is the step with no ceiling. The labels come from a search over the network's own judgement, which
-is stronger than the network alone, so training on them moves the network toward something its own
-search already demonstrated - and then it repeats.
-
-First turn the bootstrap model into generation 1:
-
-```bash
-sbt "game/run self-play ./data/nn/model/model.onnx ./data/nn/gen1 8000 600"
-cd python && .venv/bin/python train.py ../data/nn/bootstrap ../data/nn/gen1 \
-    --init ../data/nn/model/model.pt --out ../data/nn/gen1-model --epochs 20 --lr 8e-4 --value-scale 38
-.venv/bin/python export_onnx.py ../data/nn/gen1-model/model.pt
-```
-
-Then hand the rest to the loop runner, which does self-play, training, export, the arena and the
-benchmark for each generation, and only promotes a challenger that clears the gate:
-
-```bash
-scripts/selfplay-loop.sh 4 8000 600
-```
-
-Arguments are `[generations] [games] [simulations] [champion-dir] [first-generation]`. It defaults to
-continuing from `data/nn/gen1-model` at generation 2; pass the last two to start somewhere else. It is
-safe to leave running overnight - a rejected generation costs time and nothing else, and the champion
-stays put.
-
-**The number to check before each generation** is the one `dataset.py` prints for a self-play harvest:
-*search value predicts the winner*. It was 0.732 for a 600-simulation search against 0.650 for the
-network's own value head. The teacher has to be ahead of the student; if that gap closes, the generation
-has nothing new to teach and the loop has converged.
+Copy the champion next to the site and add the board to `NeuralModels` in
+`shared-js/src/main/scala/be/doeraene/workers/NeuralModels.scala` - that single list is what tells both
+the browser and the frontend a network exists for a board. The script prints the exact commands when it
+finishes.
 
 ---
 
@@ -217,6 +161,7 @@ Run-to-run variation on the training metrics is about 0.006, so treat anything u
 
 | | |
 |---|---|
+| `pipeline.py --board <board>` | the orchestrator; runs everything below in order, with checks |
 | `dataset.py <harvest>` | load shards; run directly to inspect a harvest and fit `--value-scale` |
 | `train.py <harvest...>` | train; takes several harvests, `--init` warm-starts from a checkpoint |
 | `evaluate.py <harvest> <checkpoint>` | regret and top-k on the held-out slice - the honest measure |
