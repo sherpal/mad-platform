@@ -40,6 +40,7 @@ frontend/public/web-worker/
 /data/
 /.sbt/
 my-change.patch
+my-feature.patch
 
 python/.venv/
 __pycache__/

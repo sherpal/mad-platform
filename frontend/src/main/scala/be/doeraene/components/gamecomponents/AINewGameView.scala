@@ -159,6 +159,11 @@ object AINewGameView {
           Val(false),
           startGameBus.writer.contramap(_ => ()),
           maybeIcon = Some(IconName.`media-play`)
+        ),
+        p(
+          "Drag and drop a piece onto an empty square to move it, " +
+            "onto an opponent’s piece to expel it off the board, " ++
+            "or onto one of your own pieces to swap or rotate."
         )
       ),
       onMountCallback { _ =>
