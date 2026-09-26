@@ -2,6 +2,8 @@ package be.doeraene.components.gamecomponents
 
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.mad.game.*
+import be.doeraene.workers.NeuralModels
+import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel}
 import be.doeraene.services.LocalStorageService
 import be.doeraene.utils.communication.MadTranslators
@@ -104,7 +106,7 @@ object AINewGameView {
             Select.option.selected <-- difficultyLevelVar.signal.map(_ == 3)
           ),
           child.maybe <-- chosenGameType.signal.map(gameType =>
-            Option.when(gameType == GameBoundaries._6by4)(
+            Option.when(NeuralModels.isTrained(gameType))(
               Select.option(
                 "4 (very hard)",
                 Select.option.value     := "4",
@@ -115,8 +117,11 @@ object AINewGameView {
           _.events.onChange
             .map(_.detail.selectedOption.value.toOption.get.toInt) --> difficultyLevelVar.writer,
           onMountCallback(_ => difficultyLevelVar.set(3)),
+          /* Level 4 is the neural engine, and only boards with a trained network can offer it. Dropping
+           * the selection to 3 when the player picks a board without one is what stops the engine being
+           * chosen and then failing; NeuralModels is the same list the worker loads its files from. */
           chosenGameType.signal.changes.map(gameType =>
-            if gameType != GameBoundaries._6by4 then 3 else 4
+            if NeuralModels.isTrained(gameType) then 4 else 3
           ) --> difficultyLevelVar
             .updater[Int](_.min(_))
         )

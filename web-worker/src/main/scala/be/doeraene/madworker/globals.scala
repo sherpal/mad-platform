@@ -14,15 +14,13 @@ import org.scalajs.dom.URL
   * `<base>/web-worker/main.mjs`, so its parent's parent is the base, and letting `URL` do that
   * resolution keeps the `..` out of the fetched address.
   */
-private def siteRoot: String = URL("../", self.location.href).href
+def siteRoot: String = URL("../", self.location.href).href
 
 /** The directory this worker's own script lives in. */
 private def workerRoot: String = URL("./", self.location.href).href
 
-/** The network the browser plays with, produced by `python/export_onnx.py`. Committed, so it lives with
-  * the rest of the site's assets.
-  */
-def modelUrl: String = siteRoot + "nn/mad.onnx"
+/* Which model to load is decided per board by be.doeraene.workers.NeuralModels, and resolved against
+ * siteRoot above. There is deliberately no single `modelUrl` any more: there is no single model. */
 
 /** Where onnxruntime-web's own `.wasm` binaries are served from; see [[OnnxRuntime.configure]].
   *

@@ -32,7 +32,7 @@ object EntryPoint:
              * one still thinking. */
             import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
             be.doeraene.madworker.NeuralSearch
-              .bestAction(m.gameState, m.simulations, madworker.modelUrl, madworker.ortAssetBase)
+              .bestAction(m.gameState, m.simulations, madworker.siteRoot, madworker.ortAssetBase)
               .onComplete {
                 case scala.util.Success((action, value)) =>
                   val response: WorkerProtocol = WorkerProtocol.NeuralMove(action, value)

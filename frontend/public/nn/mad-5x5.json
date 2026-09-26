@@ -1,0 +1,11 @@
+{
+  "planes": 19,
+  "rows": 5,
+  "cols": 5,
+  "policySize": 153,
+  "channels": 64,
+  "blocks": 4,
+  "actionFingerprint": 386173431,
+  "validationTop1": 0.6420553532379211,
+  "opset": 18
+}
