@@ -120,7 +120,7 @@ object DisplayGameState:
     */
   private def pieceDestinations(action: GameAction, gameState: GameState): List[(GamePiece, DropTarget)] =
     def positionOrOwnExile(mover: GamePiece, otherPiece: GamePiece): DropTarget =
-      gameState.pieces.get(otherPiece).map(pos => Left(pos.asPair): DropTarget).getOrElse(Right(mover))
+      gameState.pieces.get(otherPiece).map(pos => Left(pos.asPair): DropTarget).getOrElse(Right(otherPiece))
     action match {
       case movement: GameAction.MovementAction =>
         movement.finalPosition(gameState).toList.map(pos => movement.piece -> (Left(pos.asPair): DropTarget))
