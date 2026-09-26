@@ -271,7 +271,7 @@ object GameBoundaries:
       extends RuntimeException(s"The following value is not a game type: $value.")
 
   object GameType {
-    private val existingGameTypes: Set[GameType] = Set(
+    val existingGameTypes: Set[GameType] = Set(
       _4by6,
       _5by5,
       _6by4,

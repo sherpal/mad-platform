@@ -1,30 +1,30 @@
 package be.doeraene.components.gamecomponents
 
 import be.doeraene.components.RouteDefinitions.*
-import be.doeraene.components.{linkModifiers, Constants}
-import urldsl.language.dummyErrorImpl.*
-import com.raquo.laminar.api.L.*
 import be.doeraene.mad.game.*
-import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel}
-import be.doeraene.mad.game.GameBoundaries
+import be.doeraene.services.LocalStorageService
+import be.doeraene.utils.communication.MadTranslators
+import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom.HTMLDivElement
 import urldsl.errors.DummyError
 import urldsl.language.PathSegment
-//import be.doeraene.components.material.{Icon, ListItem, Select, Switch}
-import be.doeraene.components.router.Link
+import urldsl.language.dummyErrorImpl.*
 import be.doeraene.components.router.Router.router
 import be.doeraene.frontendutils.PrimaryButton
-import be.doeraene.webcomponents.ui5.configkeys.IconName
-import be.doeraene.webcomponents.ui5.*
 import be.doeraene.mad.game.GameBoundaries.GameType
+import be.doeraene.webcomponents.ui5.*
+import be.doeraene.webcomponents.ui5.configkeys.IconName
+import org.scalajs.dom
 
 object AINewGameView {
 
   def here: PathSegment[Unit, DummyError] = againstAI / "new-game"
 
   def apply(): ReactiveHtmlElement[HTMLDivElement] = {
+    val storage       = LocalStorageService()
+    val gameConfigKey = storage.key[GameConfig]("game-config")
 
     val chosenGameType: Var[GameBoundaries.GameType] = Var(GameBoundaries._5by5)
     val unrestrictedMoveOnFirstTurnVar: Var[Boolean] = Var(true)
@@ -139,6 +139,14 @@ object AINewGameView {
           unrestrictedMoveOnFirstTurnVar.signal.map(!_)
         ) --> { case (gameType: GameBoundaries.GameType, difficulty: Int, specialRule: Boolean) =>
           val gameOption = AIGameOption(Option.empty, difficulty, specialRule)
+
+          try
+            storage.store(gameConfigKey, GameConfig(gameType, gameOption))
+          catch {
+            case t: Throwable =>
+              dom.console.error("Failed to store game configuration, ignoring...", t)
+          }
+
           router.moveTo("/" ++ playAIGame.createUrlString((), (Option.empty[GameHistoryModel], gameType, gameOption)))
         },
         PrimaryButton(
@@ -148,8 +156,19 @@ object AINewGameView {
           maybeIcon = Some(IconName.`media-play`)
         )
       ),
-      onMountCallback(_ => chosenGameType.set(GameBoundaries._6by4))
+      onMountCallback { _ =>
+        val options = storage.retrieve(gameConfigKey).getOrElse(GameConfig.default)
+        chosenGameType.set(options.gameType)
+        unrestrictedMoveOnFirstTurnVar.set(!options.options.withInitialSpecialRule)
+        difficultyLevelVar.set(options.options.difficultyLevel)
+      }
     )
+  }
+
+  import MadTranslators.given
+  private case class GameConfig(gameType: GameType, options: AIGameOption) derives io.circe.Codec
+  private object GameConfig {
+    def default: GameConfig = GameConfig(GameBoundaries._6by4, AIGameOption(Option.empty, 3, false))
   }
 
 }

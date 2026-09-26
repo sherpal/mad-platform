@@ -3,13 +3,14 @@ package be.doeraene.utils.communication
 import be.doeraene.mad.game.*
 import be.doeraene.mad.game.GamePiece.*
 import be.doeraene.mad.game.Positions.*
-import io.circe.parser.{decode => circeDecode}
+import io.circe.parser.decode as circeDecode
 import Translator.{Json, JsonTranslator}
+import be.doeraene.mad.game.GameBoundaries.GameType
 import be.doeraene.models.*
-import java.time.LocalDateTime
 
+import java.time.LocalDateTime
 import io.circe.generic.semiauto.*
-import io.circe.{Codec => CirceCodec, Decoder => CirceDecoder, Encoder => CirceEncoder, KeyEncoder}
+import io.circe.{Codec as CirceCodec, Decoder as CirceDecoder, Encoder as CirceEncoder, KeyEncoder}
 
 import scala.util.Try
 import scala.concurrent.duration.FiniteDuration
@@ -52,6 +53,9 @@ object MadTranslators:
         .toRight(new RuntimeException(s"Unkown team: $str"))
         .toTry
     )
+
+  given CirceEncoder[GameType] = CirceEncoder.encodeString.contramap[GameType](_.value)
+  given CirceDecoder[GameType] = CirceDecoder.decodeString.emapTry(str => GameType.fromString(str).toTry)
 
   given CirceEncoder[GameBoundaries] = deriveEncoder
   given CirceDecoder[GameBoundaries] = deriveDecoder
