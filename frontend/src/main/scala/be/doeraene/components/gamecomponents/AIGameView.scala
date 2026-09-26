@@ -4,6 +4,7 @@ import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
 import be.doeraene.communication.AIApi.*
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
+import be.doeraene.workers.NeuralModels
 import com.raquo.laminar.api.L.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,13 +19,12 @@ object AIGameView:
       gameOption.maybePlayerTeam.getOrElse(if scala.util.Random.nextBoolean() then Team.Red else Team.Blue)
     val initialGameState = gameHistory.initialGameState
 
-    /* The network is trained for one board and cannot play any other. Its input is 19 x rows x cols and
-     * its heads end in a Linear over rows * cols cells, so a 5x5 board is not a harder problem for it -
-     * it is a shape its weights have no slot for, and onnxruntime rejects the tensor rather than
-     * guessing. The minimax has no such limit, so on every other board it is not the fallback, it is
-     * the only player there is. At this difficulty it searches to depth 4, which is its own strongest
-     * setting, so nothing is lost but the network. */
-    val neuralPlaysThisBoard = initialGameState.gameType == GameBoundaries._6by4
+    /* Each board needs its own network - the input is 19 x rows x cols and the heads end in a Linear
+     * over rows * cols cells, so the board is baked into the weights - and only some boards have one
+     * trained. Where none exists the minimax is not the fallback, it is the only player there is; at
+     * this difficulty it searches to depth 4, its own strongest setting, so nothing is lost but the
+     * network. NeuralModels is the single list, shared with the worker that loads the files. */
+    val neuralPlaysThisBoard = NeuralModels.isTrained(initialGameState.gameType)
 
     val aFunction = (gameState: GameState) => gameState.pieces.size * (22 - gameState.pieces.size) / 150.0
 
