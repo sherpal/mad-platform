@@ -381,7 +381,7 @@ object DisplayGameState:
   ): HtmlElement =
     div(
       className := "pending-bonus-banner",
-      span(className := "pending-bonus-text", "Row bonus available! Drag a piece to swap or rotate it..."),
+      span(className := "pending-bonus-text", "Bonus available! Drag a piece to swap or rotate it..."),
       span(
         className := "pending-bonus-skip",
         "or end your turn, no bonus",
