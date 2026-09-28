@@ -460,9 +460,15 @@ object DisplayGameState:
     // Where every *other* piece a hovered permutation/rotation/bonus touches will actually end up - the dragged
     // piece's own destination is excluded, since it already has its own ghost following the pointer.
     val previewMovesSignal: Signal[List[(GamePiece, DropTarget)]] =
-      dragStateVar.signal.combineWith(hoveredActionSignal).map {
-        case (Some(drag), Some(action)) => pieceDestinations(action, gameState).filterNot(_._1 == drag.piece)
-        case _                          => Nil
+      dragStateVar.signal.combineWith(hoveredActionSignal).combineWith(pendingBonusVar.signal).map {
+        // While a bonus decision is pending, `gameState` here is already `movement1` applied - so for the
+        // hovered bonus (always a `LastRowBonus` in this mode, see `dragTargetsForPendingBonus`), only preview
+        // its shift part directly against it. Going through `pieceDestinations(bonus, gameState)` would
+        // re-derive `movement1` on top of a board where it already happened, applying it twice.
+        case (Some(drag), Some(bonus: GameAction.LastRowBonus), Some(_)) =>
+          pieceDestinations(bonus.shiftAction, gameState).filterNot(_._1 == drag.piece)
+        case (Some(drag), Some(action), _) => pieceDestinations(action, gameState).filterNot(_._1 == drag.piece)
+        case _                             => Nil
       }
 
     def moveDestinationPreview(candidates: List[DropTarget]): Signal[Option[GamePiece]] =
