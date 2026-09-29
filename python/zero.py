@@ -47,7 +47,7 @@ from pipeline import (BOARDS, Fatal, Report, ROOT, arena, benchmark, check_envir
 
 # (from this generation onwards, use this many simulations). A network with no opinions cannot use a
 # deep search, and a network with good opinions is wasted on a shallow one; this is the ramp between.
-SIMULATION_RAMP = [(1, 128), (6, 192), (11, 256), (16, 352), (22, 480), (28, 600)]
+SIMULATION_RAMP = [(1, 128), (5, 192), (9, 256), (13, 352), (18, 480), (24, 600)]
 
 
 def simulations_for(generation: int, cap: int) -> int:
@@ -243,10 +243,12 @@ def main() -> int:
     parser.add_argument("--hours", type=float, default=None, help="stop after about this many hours")
     parser.add_argument("--generations", type=int, default=200,
                         help="a ceiling, not a target; the deadline is normally what stops the run")
-    parser.add_argument("--games", type=int, default=3000,
-                        help="self-play games per generation. Smaller than pipeline.py's because a zero "
-                             "run needs many generations more than it needs big ones, and the training "
-                             "window below is what keeps small generations stable.")
+    parser.add_argument("--games", type=int, default=2000,
+                        help="self-play games per generation. A quarter of what pipeline.py harvests, "
+                             "because a cold start needs many policy-improvement steps far more than it "
+                             "needs big ones, and the training window below is what keeps small "
+                             "generations stable. Measured: 2000 games at 128 simulations is about 23 "
+                             "minutes on 20 cores, and yields ~29 positions per game.")
     parser.add_argument("--window", type=int, default=4,
                         help="how many recent generations to train on at once")
     parser.add_argument("--simulations", type=int, default=600,

@@ -127,6 +127,68 @@ finishes.
 
 ---
 
+# Training from nothing: `zero.py`
+
+`pipeline.py` learns by first imitating the minimax, which is what AlphaGo did. `zero.py` starts from a
+network that has never seen a game and is told only who won, which is what AlphaGo **Zero** did. No
+harvest, no minimax, nothing but the rules.
+
+```bash
+cd python
+.venv/bin/python zero.py --board 6x4 --until 08:00 --benchmark-depth 4
+```
+
+It stops cleanly before the generation that would run past `--until`, and the identical command resumes
+it: `state.json` holds the champion, the history and the measured benchmark depth, so a resume
+recomputes nothing. Use `--hours 12` instead if a duration is easier than a time of day.
+
+## Why a cold start works on this game
+
+The whole question is whether random play carries any signal, and here it does:
+
+| | |
+|---|---|
+| random vs random | **68% decisive** - W61 L50 D51 over 162 games on 6x4 |
+| self-play from an empty network | **79.5% decisive** - win 40.2%, draw 20.5%, loss 39.3% |
+
+Regicide is a single capture, so it happens by accident. Chess does not have this: random games there
+are nearly all draws under the 50-move rule, and the value head has almost nothing to fit early on.
+**Check this first on any new board** - `game/run ai-benchmark 1 {"Random":{}} {"Random":{}} 81` prints
+it in seconds, and a board that draws most random games needs a different plan, not a longer run.
+
+## What it does differently, and why each one is needed
+
+| | |
+|---|---|
+| simulations ramp 128 -> 600 | 600 simulations over 153 actions is wasted on a network with no opinions; the search has nothing to guide it. The ramp is `SIMULATION_RAMP` |
+| the value target is the result alone at first | at generation 0 the search predicts the winner **0.071** of the time. Blending that in, as pipeline.py does at 0.5, would be blending in noise. `--blend-after` is when it starts counting |
+| trains on a sliding window of generations | `--window 4`. It is what makes small cheap generations safe: each one is ~29 positions per game, so 2000 games is ~58k new positions against a ~230k window |
+| the arena gate starts at 45%, not 55% | 40 games cannot resolve a 55% difference between two weak networks, so a strict gate rejects real progress for noise. Early on the gate only has to catch a *catastrophic* regression. `--settle` is when it tightens |
+| generations are small | `--games 2000`, a quarter of pipeline.py's. A cold start needs policy-improvement steps far more than it needs big ones |
+
+`random_init.py` builds generation 0, and **zeroes both output layers rather than randomising them**.
+That makes the starting network exactly a uniform prior with a value of 0 - the same thing
+`BatchEvaluator.uninformed` does - so the first games are driven purely by what the search can prove.
+A random final layer would instead hand generation 1 an arbitrary preference to reinforce and later
+unlearn. Gradients still flow through a zeroed layer, so nothing is frozen by it.
+
+The shape of the network comes from `sbt game/run nn-descriptor <board>`, which is new: a zero run has
+no harvest manifest to read it off, and Scala stays the only place that knows how a position is encoded.
+
+## Reading a run
+
+The minimax appears exactly once, as a **yardstick** - `--benchmark-every` scores the champion against
+it. Nothing it says ever reaches the network, which is what keeps the run honest; AlphaGo Zero was
+scored against AlphaGo Lee the same way. Expect **0.0% for the first several generations**: at 800
+simulations a still-random network loses 20-0 in about 19 turns, and that number stays at zero long
+after the arena shows real progress. The arena is the live signal; the benchmark is the milestone.
+
+`--benchmark-depth 4` skips measuring which minimax depth is strongest. Worth passing on a known board:
+the comparison costs about 20 minutes because depth 5 is slow, and the answer is a fixed property of the
+board - 4 on every board tried so far.
+
+---
+
 # Improving on the current model
 
 The loop as run has converged, so simply running more generations of the same thing will not help. In
@@ -162,12 +224,15 @@ Run-to-run variation on the training metrics is about 0.006, so treat anything u
 | | |
 |---|---|
 | `pipeline.py --board <board>` | the orchestrator; runs everything below in order, with checks |
+| `zero.py --board <board> --until HH:MM` | the same, with no minimax anywhere: starts from an untrained network and is told only who won |
+| `random_init.py` | builds the untrained network a zero run starts from |
 | `dataset.py <harvest>` | load shards; run directly to inspect a harvest and fit `--value-scale` |
 | `train.py <harvest...>` | train; takes several harvests, `--init` warm-starts from a checkpoint |
 | `evaluate.py <harvest> <checkpoint>` | regret and top-k on the held-out slice - the honest measure |
 | `export_onnx.py <checkpoint>` | write the `.onnx` the engine and the browser both load |
 
 Scala side, all via `sbt "game/run ..."`: `harvest-positions`, `self-play`, `arena`, `nn-benchmark`,
+`nn-descriptor` (the network's input shape and action fingerprint for a board, as JSON),
 and `ai-benchmark` (which takes a 7th argument to give the opponent a different depth, for comparing
 one depth against another).
 
