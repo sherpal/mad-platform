@@ -4,10 +4,10 @@ import be.doeraene.mad.game.*
 import be.doeraene.mad.game.GameBoundaries.GameType
 import be.doeraene.mad.game.Positions.*
 import be.doeraene.models.*
+import be.doeraene.models.WithTime.time.Time
 import io.circe.generic.semiauto.*
 import io.circe.{Codec as CirceCodec, Decoder as CirceDecoder, Encoder as CirceEncoder}
 
-import java.time.LocalDateTime
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -81,10 +81,6 @@ object MadTranslators:
         }
     )
 
-  /** redInfo: AllGameInfo.PlayerInfo, blueInfo: AllGameInfo.PlayerInfo, gameHistory: GameHistory[NumRow, NumCol],
-    * startTime: LocalDateTime, lastUpdateTime: LocalDateTime
-    */
-
   given finiteDurationEncoder: CirceEncoder[FiniteDuration] =
     CirceEncoder[String].contramap(_.toString)
 
@@ -96,7 +92,7 @@ object MadTranslators:
   given PlayerInfoCodec: CirceCodec[AllGameInfo.PlayerInfo] = deriveCodec
 
   given allGameInfoEncoder: CirceEncoder[AllGameInfo] =
-    CirceEncoder[(AllGameInfo.PlayerInfo, AllGameInfo.PlayerInfo, GameHistory, LocalDateTime, LocalDateTime)]
+    CirceEncoder[(AllGameInfo.PlayerInfo, AllGameInfo.PlayerInfo, GameHistory, Time, Time)]
       .contramap(allGameInfo =>
         (
           allGameInfo.redInfo,
@@ -107,7 +103,7 @@ object MadTranslators:
         )
       )
   given allGameInfoDecoder: CirceDecoder[AllGameInfo] =
-    CirceDecoder[(AllGameInfo.PlayerInfo, AllGameInfo.PlayerInfo, GameHistory, LocalDateTime, LocalDateTime)].map(
+    CirceDecoder[(AllGameInfo.PlayerInfo, AllGameInfo.PlayerInfo, GameHistory, Time, Time)].map(
       (redInfo, blueInfo, gameHistory, startTime, lastUpdateTime) =>
         AllGameInfo(redInfo, blueInfo, gameHistory, startTime, lastUpdateTime)
     )

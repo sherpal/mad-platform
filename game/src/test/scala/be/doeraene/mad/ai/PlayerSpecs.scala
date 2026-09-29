@@ -6,7 +6,7 @@ import be.doeraene.mad.game.GamePiece.*
 
 final class PlayerSpecs extends munit.FunSuite:
 
-  test("Player should correctly sacrified itself") {
+  test("Player should correctly sacrifice itself") {
     val gameStateRepr = """
     |Turn Number: 68
     |
@@ -19,9 +19,8 @@ final class PlayerSpecs extends munit.FunSuite:
 
     val gameState = parse(gameStateRepr).toTry.get
 
-    val player       = Player.jPaulTheoryPlayer(15, 0.03)
-    val randomPlayer = Player.randomMadPlayer
-    val suicide      = Permutation(blue111, blue222)
+    val player  = Player.jPaulTheoryPlayer(15, 0.03)
+    val suicide = Permutation(blue111, blue222)
     assertEquals(
       player.nextAction(gameState),
       suicide

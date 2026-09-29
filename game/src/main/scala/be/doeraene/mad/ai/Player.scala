@@ -4,8 +4,6 @@ import be.doeraene.mad.ai.minimax.Function1Like.act
 import be.doeraene.mad.ai.minimax.{Function1Like, Node, TreeExplorer}
 import be.doeraene.mad.game.*
 
-import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
 import scala.concurrent.duration.*
 
@@ -29,10 +27,10 @@ object Player {
   type MadPlayer = Player[GameState, GameAction]
 
   def timeIt[A](effect: => A): (A, FiniteDuration) =
-    val startTime = LocalDateTime.now
+    val startTime = System.currentTimeMillis()
     val a         = effect
-    val endTime   = LocalDateTime.now
-    val timeTaken = startTime.until(endTime, ChronoUnit.MILLIS)
+    val endTime   = System.currentTimeMillis()
+    val timeTaken = endTime - startTime
     (a, timeTaken.millis)
 
   def randomMadPlayer: MadPlayer =

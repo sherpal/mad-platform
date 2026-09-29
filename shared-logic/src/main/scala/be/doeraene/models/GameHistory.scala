@@ -7,8 +7,6 @@ import cats.kernel.Monoid
 import io.circe.*
 import io.circe.generic.semiauto.*
 
-import java.time.LocalDateTime
-
 final case class GameHistory(
     initialGameState: GameState,
     actions: Vector[WithTime[GameAction]]
@@ -33,8 +31,8 @@ final case class GameHistory(
 
   def add(action: GameAction, now: Time): GameHistory = copy(actions = actions :+ WithTime(action, now))
 
-  def add(action: GameAction, startTime: LocalDateTime, now: LocalDateTime): GameHistory =
-    copy(actions = actions :+ WithTime(action, Time.fromLocalDateTime(startTime, now)))
+  def add(action: GameAction, startTime: Time, now: Time): GameHistory =
+    copy(actions = actions :+ WithTime(action, now - startTime))
 
   def playersThinkingTimeInfo: PlayersThinkingTimeInfo = {
     val startingPlayer                  = initialGameState.turnOfTeam

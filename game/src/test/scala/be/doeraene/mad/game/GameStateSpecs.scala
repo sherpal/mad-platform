@@ -1,7 +1,6 @@
 package be.doeraene.mad.game
 
 import be.doeraene.mad.game.GamePiece.*
-import be.doeraene.mad.game.Positions.*
 
 class GameStateSpecs extends munit.FunSuite {
 

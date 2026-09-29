@@ -1,9 +1,9 @@
 package be.doeraene.models
 
 import be.doeraene.mad.game.*
+import be.doeraene.models.WithTime.time.Time
 import io.circe.{Codec, Decoder, Encoder}
 
-import java.time.*
 import scala.concurrent.duration.*
 import scala.util.{Failure, Success, Try}
 
@@ -14,16 +14,16 @@ final case class AllGameInfo(
     redInfo: AllGameInfo.PlayerInfo,
     blueInfo: AllGameInfo.PlayerInfo,
     gameHistory: GameHistory,
-    startTime: LocalDateTime,
-    lastUpdateTime: LocalDateTime
+    startTime: Time,
+    lastUpdateTime: Time
 ):
   def shape: (Int, Int) = gameHistory.shape
 
-  inline transparent def addAction(action: GameAction, now: LocalDateTime): AllGameInfo =
+  def addAction(action: GameAction, now: Time): AllGameInfo =
     val newHistory          = gameHistory.add(action, startTime, now)
     val newGameState        = newHistory.currentGameState
     val justPlayed          = newGameState.turnOfTeam.otherTeam
-    val timeSinceLastUpdate = lastUpdateTime.until(now, temporal.ChronoUnit.SECONDS).seconds
+    val timeSinceLastUpdate = lastUpdateTime.until(now).millis
     val newRedInfo          = if justPlayed == Team.Red then redInfo.addTime(timeSinceLastUpdate) else redInfo
     val newBlueInfo         = if justPlayed == Team.Blue then blueInfo.addTime(timeSinceLastUpdate) else blueInfo
     AllGameInfo(

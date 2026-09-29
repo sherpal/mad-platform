@@ -3,7 +3,6 @@ package be.doeraene.cli
 import be.doeraene.mad.game.GameState.AnyGameState
 import be.doeraene.mad.game.{GameBoundaries, GamePiece, GameState}
 
-import java.time.LocalDateTime
 import scala.util.{Failure, Try}
 
 /** [[GameStateParser]] reading string in format:
@@ -21,13 +20,13 @@ import scala.util.{Failure, Try}
   */
 object CustomGameStateParser extends GameStateParser:
 
-  val commentIdentifier: String = "#"
+  private val commentIdentifier: String = "#"
 
   private final class IllegalShapeFormat(value: String)
       extends RuntimeException(
         s"The value `$value` does not properly represent a shape. Expected `n, m`."
       )
-  private final class MissingShapeParam()
+  private final class MissingShapeParam
       extends RuntimeException(
         "Shape information was missing from the contents."
       )
@@ -37,13 +36,13 @@ object CustomGameStateParser extends GameStateParser:
         s"Unknown shape: $shape."
       )
 
-  private final class MissingGameTypeParam()
+  private final class MissingGameTypeParam
       extends RuntimeException("Game Type information was missing from the contents.")
 
   private final class UnknownGameType(gameType: GameBoundaries.GameType)
       extends RuntimeException(s"Unknown game type: $gameType")
 
-  def shapeParser(value: String): Either[Throwable, (Int, Int)] =
+  private def shapeParser(value: String): Either[Throwable, (Int, Int)] =
     value.split(",").map(_.trim) match {
       case Array(numRowStr, numColStr) =>
         (for {
@@ -53,9 +52,9 @@ object CustomGameStateParser extends GameStateParser:
       case _ => Left(IllegalShapeFormat(value))
     }
 
-  type _6by4 = (6, 4)
-  type _5by5 = (5, 5)
-  type Shape = _6by4 | _5by5
+  type _6by4         = (6, 4)
+  type _5by5         = (5, 5)
+  private type Shape = _6by4 | _5by5
 
   inline transparent def shapeFilter(shape: (Int, Int)): Either[Throwable, Shape] =
     shape match {
@@ -67,7 +66,7 @@ object CustomGameStateParser extends GameStateParser:
   // noinspection MapGetOrElseBoolean
   def createGameState(
       gameBoundaries: GameBoundaries
-  )(map: Map[String, String]) =
+  )(map: Map[String, String]): Either[Throwable, AnyGameState] =
     for {
       turnNumberString             <- map.get("Turn Number").toRight(new RuntimeException("Turn Number is missing"))
       turnNumber                   <- Try(turnNumberString.toInt).toEither
@@ -155,7 +154,7 @@ object CustomGameStateParser extends GameStateParser:
 
   def generate(gameState: AnyGameState): String = {
     val c   = commentIdentifier
-    val now = LocalDateTime.now
+    val now = System.currentTimeMillis()
     val piecesPositionStr = gameState.pieces
       .map { (piece, position) =>
         s"${position.toChessNotation}: ${piece.prettyPrint}"

@@ -3,8 +3,7 @@ package be.doeraene.models
 import cats.Monoid
 import io.circe.{Decoder, Encoder}
 
-import java.time.LocalDateTime
-import java.time.temporal.ChronoUnit
+import scala.concurrent.duration.FiniteDuration
 
 final case class WithTime[Value](value: Value, time: WithTime.time.Time) {
   def map[To](f: Value => To): WithTime[To] = WithTime(f(value), time)
@@ -21,21 +20,20 @@ object WithTime {
 
     object Time {
       def zero: Time = 0L
-      
+
       def now(): Time = System.currentTimeMillis()
 
       def fromValue(now: Long): Time = now
 
-      def fromLocalDateTime(startTime: LocalDateTime, now: LocalDateTime): Time =
-        startTime.until(now, ChronoUnit.MILLIS)
-
       extension (time: Time) {
         def value: Long = time
-        
+
         def until(that: Time): Time = that - time
 
-        def toSeconds: Long = time / 1000
-        def toMinutes: Long = time.toSeconds / 60
+        def millis: FiniteDuration = FiniteDuration(time, "millis")
+
+        private def toSeconds: Long = time / 1000
+        private def toMinutes: Long = time.toSeconds / 60
 
         def format: String = {
           val minutes = time.toMinutes

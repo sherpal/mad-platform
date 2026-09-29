@@ -1,14 +1,14 @@
 package be.doeraene.mad.game
 
+import be.doeraene.mad.ai.minimax.Node.Evaluator
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 import be.doeraene.mad.game.GamePiece.*
-import be.doeraene.mad.game.Positions.*
 
 class PieceEvaluatorSpecs extends munit.FunSuite {
 
-  val evaluator     = PieceEvaluator.jPaulDoeFirstTheory(0.03)
-  val nodeEvaluator = Node.evaluatorFromPieceEvaluator(evaluator)
-  val boundaries    = GameBoundaries.originalSixByFour
+  val evaluator: PieceEvaluator                 = PieceEvaluator.jPaulDoeFirstTheory(0.03)
+  val nodeEvaluator: Evaluator[GameState, Team] = Node.evaluatorFromPieceEvaluator(evaluator)
+  val boundaries: GameBoundaries                = GameBoundaries.originalSixByFour
 
   test("enemy222nextTo111LeadToDefeat") {
     val enemy222Pos = boundaries.Position(0, 0).get
