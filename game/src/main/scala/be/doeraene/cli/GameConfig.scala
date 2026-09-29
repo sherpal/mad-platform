@@ -145,6 +145,14 @@ object GameConfig:
       board: String
   ) extends GameConfig
 
+  /** Report the network's input shape and action ordering for a board, as JSON on stdout.
+    *
+    * Exists so the Python side can build a randomly initialised network for a board it has never seen, without
+    * knowing anything about how a position is encoded. Every one of these numbers is otherwise learnt from a
+    * harvest's manifest - which a tabula-rasa run does not have, because there is nothing to harvest from yet.
+    */
+  case class NnDescriptor(board: String) extends GameConfig
+
   /** Parses a board from a spaceless alias.
     *
     * [[GameBoundaries.GameType]]'s own names contain spaces ("5 by 5"), and sbt splits a command on whitespace before
@@ -484,5 +492,6 @@ object GameConfig:
         case "nn-benchmark"      => neuralBenchmarkConfig(args.tail.toVector)
         case "self-play"         => selfPlayConfig(args.tail.toVector)
         case "arena"             => arenaConfig(args.tail.toVector)
+        case "nn-descriptor"     => NnDescriptor(args.tail.headOption.getOrElse("6x4"))
         case str => throw new IllegalArgumentException(s"First argument was $str but require 'play' or 'best-action'")
       }

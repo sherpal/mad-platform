@@ -267,7 +267,7 @@ def check_fingerprints(harvest: Path, model: Path, force: bool) -> None:
         )
 
 
-def check_sanity(board: str, model: Path, report: Report, force: bool) -> None:
+def check_sanity(board: str, model: Path, report: Report, force: bool) -> float:
     """The two checks that separate 'weak' from 'broken'.
 
     A broken network and a merely bad one both lose to the minimax, and the win rate alone cannot tell
@@ -346,14 +346,19 @@ def harvest_bootstrap(args, data: Path, report: Report) -> Path:
 
 
 def train(harvests: list[Path], out: Path, value_scale: float, report: Report, *, init: Path | None,
-          epochs: int, lr: float | None, label: str) -> float:
-    """Trains, exports, and returns the held-out top-1."""
+          epochs: int, lr: float | None, label: str, extra: list[str] | None = None) -> float:
+    """Trains, exports, and returns the held-out top-1.
+
+    `extra` passes further flags straight to train.py; zero.py uses it for --value-blend, which it has
+    to vary over a run where this pipeline can leave it at its default.
+    """
     command = [str(path) for path in harvests] + ["--out", str(out), "--epochs", str(epochs),
                                                   "--value-scale", str(value_scale)]
     if init is not None:
         command += ["--init", str(init / "model.pt")]
     if lr is not None:
         command += ["--lr", str(lr)]
+    command += extra or []
 
     output = python_step("train.py", *command, what=f"training {label}")
     python_step("export_onnx.py", str(out / "model.pt"), what=f"exporting {label}")
