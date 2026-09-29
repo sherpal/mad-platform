@@ -1,11 +1,11 @@
 package be.doeraene.mad.ai.nn.data
 
-import scala.collection.parallel.CollectionConverters.*
-import scala.util.Random
-
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 import be.doeraene.mad.ai.nn.{ActionIndex, Canonical, StateEncoder}
 import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
+
+import scala.collection.parallel.CollectionConverters.*
+import scala.util.Random
 
 /** Harvests labelled positions by watching the existing minimax engine play itself.
   *
@@ -92,7 +92,7 @@ object SupervisedHarvester:
     val openingPlies = random.nextInt(config.maxRandomOpeningPlies + 1)
     var state        = GameState.initialGameStateWithBoundaries(boundaries, withInitialSpecialRule = true)
     var ply          = 0
-    var pending      = Vector.newBuilder[PendingSample]
+    val pending      = Vector.newBuilder[PendingSample]
 
     // The random prefix. Nothing here is recorded: the point is only to reach a position the engine has not seen.
     while ply < openingPlies && !state.ended do

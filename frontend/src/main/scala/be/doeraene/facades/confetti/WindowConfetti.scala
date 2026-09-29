@@ -1,8 +1,8 @@
 package be.doeraene.facades.confetti
 
-import scala.language.implicitConversions
-
 import org.scalajs.dom
+
+import scala.language.implicitConversions
 import scala.scalajs.js
 
 @js.native

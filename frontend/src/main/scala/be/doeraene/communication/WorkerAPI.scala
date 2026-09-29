@@ -1,15 +1,14 @@
 package be.doeraene.communication
 
+import be.doeraene.globals.webWorkerPath
 import be.doeraene.workers.*
+import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalajs.dom
 import org.scalajs.dom.{Worker, WorkerOptions, WorkerType}
-import scala.concurrent.{Future, Promise}
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import be.doeraene.globals.webWorkerPath
-
-import io.circe.syntax.*
-import io.circe.parser.decode
-
+import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 
 object WorkerAPI:

@@ -10,7 +10,7 @@ import be.doeraene.webcomponents.ui5.*
 import be.doeraene.webcomponents.ui5.configkeys.ButtonDesign
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import org.scalajs.dom.{html, FormData}
+import org.scalajs.dom.html
 import urldsl.errors.DummyError
 import urldsl.language.PathSegment
 import urldsl.language.dummyErrorImpl.*

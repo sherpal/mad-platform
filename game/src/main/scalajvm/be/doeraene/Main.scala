@@ -1,16 +1,12 @@
 package be.doeraene
 
 import be.doeraene.cli.{AskForGameAction, GameConfig}
-import be.doeraene.mad.ai.Player.{MadPlayer, minimaxMadPlayer}
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
-import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
-import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
-import be.doeraene.mad.ai.{benchmark, tournament, Player, TacticalWeights}
-import be.doeraene.mad.ai.nn.OnnxEvaluator
-import be.doeraene.mad.ai.nn.data
 import be.doeraene.mad.ai.nn.data.{SelfPlayHarvester, ShardWriter, SupervisedHarvester}
-import be.doeraene.mad.ai.nn.mcts
-import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, PieceEvaluator, Team}
+import be.doeraene.mad.ai.nn.{OnnxEvaluator, data, mcts}
+import be.doeraene.mad.ai.tuning.{ClaudeWeightTuner, TacticalWeightTuner, TexelTuner}
+import be.doeraene.mad.ai.{Player, TacticalWeights, benchmark, tournament}
+import be.doeraene.mad.game.*
 
 import java.nio.file.Paths
 import java.time.ZoneOffset

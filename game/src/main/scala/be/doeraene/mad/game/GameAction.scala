@@ -1,9 +1,8 @@
 package be.doeraene.mad.game
 
+import be.doeraene.mad.game.Positions.Direction
 import be.doeraene.mad.game.errors.OwnLegalityException
 import be.doeraene.mad.game.errors.OwnLegalityException.*
-import Positions.{Column, Direction, Position, Row}
-import be.doeraene.mad.game.GameAction.{GamePieceMoves1, GamePieceMoves2}
 import be.doeraene.perf.NatArray
 
 import scala.util.Random
@@ -401,12 +400,11 @@ object GameAction:
     def isLegal(
         gameState: GameState
     ): Boolean =
-      import gameState.gameBoundaries.given
       movement1.isLegal(gameState) && movement1
         .finalPosition(gameState)
         .exists(gameState.gameBoundaries.bonusActionPositions(actionForTeam) contains _) &&
-      shiftAction
-        .isLegal(movement1(gameState)) && !movement1.maybeTakenPiece(gameState).contains(actionForTeam.otherTeam._111)
+        shiftAction
+          .isLegal(movement1(gameState)) && !movement1.maybeTakenPiece(gameState).contains(actionForTeam.otherTeam._111)
 
     def ownLegality: Either[OwnLegalityException, this.type] =
       for {

@@ -6,8 +6,6 @@ import urldsl.errors.DummyError.dummyError
 import urldsl.language.dummyErrorImpl.*
 import urldsl.vocabulary.{FromString, Printer}
 
-import scala.util.Try
-
 //noinspection TypeAnnotation
 object RouteDefinitions:
 

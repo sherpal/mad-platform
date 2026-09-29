@@ -1,7 +1,7 @@
 package be.doeraene.components.router
 
-import com.raquo.laminar.nodes.ReactiveHtmlElement
 import be.doeraene.components.router.Router.Url
+import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import urldsl.language.{PathSegment, PathSegmentWithQueryParams}
 import urldsl.vocabulary.UrlMatching

@@ -1,7 +1,7 @@
 package be.doeraene.mad.game
 
-import be.doeraene.mad.ai.minimax.Node.MadGameStateNode
 import be.doeraene.mad.ai.Player
+import be.doeraene.mad.ai.minimax.Node.MadGameStateNode
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 
 import java.time.temporal.{ChronoUnit, TemporalUnit}

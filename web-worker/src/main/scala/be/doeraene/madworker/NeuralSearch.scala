@@ -2,7 +2,6 @@ package be.doeraene.madworker
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js
-import scala.scalajs.js.Thenable.Implicits.*
 import scala.scalajs.js.typedarray.Float32Array
 
 import be.doeraene.mad.ai.nn.mcts.{Evaluation, SearchConfig, SearchTree}
@@ -13,22 +12,21 @@ import be.doeraene.workers.NeuralModels
 
 /** Runs the search in the browser, against the same `.onnx` files the JVM engine uses.
   *
-  * This is the payoff for [[SearchTree]] not calling an evaluator itself. The runtime here can only be
-  * asked for a result via a promise, so the loop below has to be asynchronous - but the search inside it
-  * is the identical, synchronous, tested code the self-play harness runs. There is no second
-  * implementation of MCTS, of the encoding, or of the rules, and so nothing that can drift between what
-  * was trained and what is played.
+  * This is the payoff for [[SearchTree]] not calling an evaluator itself. The runtime here can only be asked for a
+  * result via a promise, so the loop below has to be asynchronous - but the search inside it is the identical,
+  * synchronous, tested code the self-play harness runs. There is no second implementation of MCTS, of the encoding, or
+  * of the rules, and so nothing that can drift between what was trained and what is played.
   */
 object NeuralSearch:
 
   private given ExecutionContext = scala.scalajs.concurrent.JSExecutionContext.queue
 
-  /** One session per model, not one per worker: a player can change board without reloading the page,
-    * and the models are not interchangeable.
+  /** One session per model, not one per worker: a player can change board without reloading the page, and the models
+    * are not interchangeable.
     *
-    * Memoised on the Future rather than on its result, so two requests arriving before the first load
-    * finishes share it instead of each building a session - which would mean compiling 14MB of runtime
-    * twice, and is the difference between a move taking half a second and five.
+    * Memoised on the Future rather than on its result, so two requests arriving before the first load finishes share it
+    * instead of each building a session - which would mean compiling 14MB of runtime twice, and is the difference
+    * between a move taking half a second and five.
     */
   private var sessions: Map[String, Future[OnnxRuntime.Session]] = Map.empty
 

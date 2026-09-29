@@ -1,12 +1,12 @@
 package be.doeraene.components.gamecomponents
 
-import com.raquo.laminar.api.L.*
 import be.doeraene.mad.game.*
 import be.doeraene.models.{PlayerName, WithTime}
-
-import scala.scalajs.js.timers.*
 import be.doeraene.webcomponents.ui5.Icon
 import be.doeraene.webcomponents.ui5.configkeys.IconName
+import com.raquo.laminar.api.L.*
+
+import scala.scalajs.js.timers.*
 
 object PlayerFrame:
 

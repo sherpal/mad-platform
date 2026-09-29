@@ -4,7 +4,6 @@ import be.doeraene.mad.game.*
 import io.circe.{Codec, Decoder, Encoder}
 
 import java.time.*
-import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.*
 import scala.util.{Failure, Success, Try}
 

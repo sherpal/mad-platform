@@ -1,6 +1,6 @@
 package be.doeraene.mad.game
 
-import GamePiece.*
+import be.doeraene.mad.game.GamePiece.*
 import be.doeraene.perf.NatArray
 
 /** A [[GamePiece]] is a pawn on the game. There are 16 in total (8 per team), characterised by a [[Movement]], an

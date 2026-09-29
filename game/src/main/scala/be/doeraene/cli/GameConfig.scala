@@ -1,13 +1,13 @@
 package be.doeraene.cli
 
+import be.doeraene.mad.ai.Player.MadPlayer
 import be.doeraene.mad.ai.{Player, TacticalWeights}
-import be.doeraene.mad.ai.Player.{minimaxMadPlayer, MadPlayer}
 import be.doeraene.mad.game.{GameBoundaries, GameState, Team}
 import io.circe.Codec
 
 import java.nio.file.Paths
-import scala.util.Try
 import scala.jdk.CollectionConverters.*
+import scala.util.Try
 
 sealed trait GameConfig
 
@@ -28,14 +28,13 @@ object GameConfig:
   case class MadMatch(minimaxDepth: Int, config1: AIConfig, config2: AIConfig) extends GameConfig
 
   /** @param openings
-    *   how many of the 81 distinct positioning-turn openings to play (each is played with both colour assignments,
-    *   so the number of games is twice this)
+    *   how many of the 81 distinct positioning-turn openings to play (each is played with both colour assignments, so
+    *   the number of games is twice this)
     */
   /** @param opponentDepth
-    *   depth for `config2`, when it should differ from `config1`'s. Comparing one depth against another
-    *   is the only way to tell a real strength difference from the odd/even effect, where ending a
-    *   search on the opponent's reply rather than on one's own move changes how optimistic the leaf
-    *   evaluation is.
+    *   depth for `config2`, when it should differ from `config1`'s. Comparing one depth against another is the only way
+    *   to tell a real strength difference from the odd/even effect, where ending a search on the opponent's reply
+    *   rather than on one's own move changes how optimistic the leaf evaluation is.
     */
   case class MadBenchmark(
       minimaxDepth: Int,
@@ -48,8 +47,8 @@ object GameConfig:
   ) extends GameConfig
 
   /** @param openings
-    *   how many openings to play once, to harvest labelled positions from; the games are split so that positions
-    *   from different openings never straddle the training/validation boundary
+    *   how many openings to play once, to harvest labelled positions from; the games are split so that positions from
+    *   different openings never straddle the training/validation boundary
     * @param gameDepth
     *   search depth used to generate those games - it decides how good the play behind the labels is
     */
@@ -98,8 +97,8 @@ object GameConfig:
 
   /** Play a searching network against one of the minimax configurations, over the usual opening battery.
     *
-    * Kept out of [[AIConfig]] on purpose: a model path only means anything on the JVM, and `AIConfig` is
-    * cross-compiled to the browser.
+    * Kept out of [[AIConfig]] on purpose: a model path only means anything on the JVM, and `AIConfig` is cross-compiled
+    * to the browser.
     *
     * @param model
     *   path to a `.onnx` written by `python/export_onnx.py`, with its `.json` sidecar beside it
@@ -122,8 +121,8 @@ object GameConfig:
     * @param model
     *   the `.onnx` to play with, or the literal `uninformed` to start from flat priors
     * @param simulations
-    *   search depth per move. More makes better labels and a slower generation, and it is the dial that
-    *   decides how much stronger than the network the teacher is.
+    *   search depth per move. More makes better labels and a slower generation, and it is the dial that decides how
+    *   much stronger than the network the teacher is.
     */
   case class SelfPlay(
       model: String,
@@ -148,15 +147,14 @@ object GameConfig:
 
   /** Parses a board from a spaceless alias.
     *
-    * [[GameBoundaries.GameType]]'s own names contain spaces ("5 by 5"), and sbt splits a command on
-    * whitespace before anything here sees it, so the real names cannot be typed as arguments. These
-    * aliases can.
+    * [[GameBoundaries.GameType]]'s own names contain spaces ("5 by 5"), and sbt splits a command on whitespace before
+    * anything here sees it, so the real names cannot be typed as arguments. These aliases can.
     */
   def boardFromAlias(alias: String): GameBoundaries = alias.toLowerCase match {
-    case "6x4"           => GameBoundaries.originalSixByFour
-    case "5x5"           => GameBoundaries.defaultFiveByFive
-    case "4x6"           => GameBoundaries.defaultFourBySix
-    case "aztec"         => GameBoundaries.aztecDiamondBoundaries
+    case "6x4"   => GameBoundaries.originalSixByFour
+    case "5x5"   => GameBoundaries.defaultFiveByFive
+    case "4x6"   => GameBoundaries.defaultFourBySix
+    case "aztec" => GameBoundaries.aztecDiamondBoundaries
     case other =>
       throw IllegalArgumentException(s"unknown board '$other'; expected one of 6x4, 5x5, 4x6, aztec")
   }
@@ -173,9 +171,10 @@ object GameConfig:
     case class ClaudeTheory() extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.claudeTheoryPlayer(minimaxDepth)
     }
+
     /** @param weights
-      *   sparse overrides on top of [[be.doeraene.mad.ai.TacticalWeights.default]], by field name, so a single term
-      *   can be probed from the command line without a recompile
+      *   sparse overrides on top of [[be.doeraene.mad.ai.TacticalWeights.default]], by field name, so a single term can
+      *   be probed from the command line without a recompile
       */
     case class Tactical(weights: Option[Map[String, Double]] = None) extends AIConfig {
       def player(minimaxDepth: Int): MadPlayer = Player.tacticalPlayerWithWeights(
@@ -448,9 +447,6 @@ object GameConfig:
 
     val minimaxDepth = Try(args(2).toInt).get
 
-    // noinspection MapGetOrElseBoolean
-    val withInitialSpecialRule: Boolean = Try(args(4)).toOption.map(_.toBoolean).getOrElse(true)
-
     val startingGameState = Try(args(3)).toOption match {
       case Some(filepath) =>
         (for {
@@ -476,14 +472,14 @@ object GameConfig:
       throw new IllegalArgumentException(s"First argument")
     } else
       args(0) match {
-        case "play"        => playGameConfig(args.tail.toVector)
-        case "best-action" => bestActionConfig(args.tail.toVector)
-        case "tournament"  => madTournamentConfig(args.tail.toVector)
-        case "ai-match"    => madMatchConfig(args.tail.toVector)
-        case "ai-benchmark" => madBenchmarkConfig(args.tail.toVector)
-        case "tune-claude" => tuneClaudeConfig(args.tail.toVector)
-        case "tune-tactical" => tuneTacticalConfig(args.tail.toVector)
-        case "texel-tune"    => texelTuneConfig(args.tail.toVector)
+        case "play"              => playGameConfig(args.tail.toVector)
+        case "best-action"       => bestActionConfig(args.tail.toVector)
+        case "tournament"        => madTournamentConfig(args.tail.toVector)
+        case "ai-match"          => madMatchConfig(args.tail.toVector)
+        case "ai-benchmark"      => madBenchmarkConfig(args.tail.toVector)
+        case "tune-claude"       => tuneClaudeConfig(args.tail.toVector)
+        case "tune-tactical"     => tuneTacticalConfig(args.tail.toVector)
+        case "texel-tune"        => texelTuneConfig(args.tail.toVector)
         case "harvest-positions" => harvestPositionsConfig(args.tail.toVector)
         case "nn-benchmark"      => neuralBenchmarkConfig(args.tail.toVector)
         case "self-play"         => selfPlayConfig(args.tail.toVector)

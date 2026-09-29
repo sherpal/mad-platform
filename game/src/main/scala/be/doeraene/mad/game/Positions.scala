@@ -1,9 +1,9 @@
 package be.doeraene.mad.game
 
-import scala.compiletime.ops.int.*
-import scala.util.Try
-import GamePiece.*
+import be.doeraene.mad.game.GamePiece.*
 import be.doeraene.perf.NatArray
+
+import scala.util.Try
 
 object Positions {
 

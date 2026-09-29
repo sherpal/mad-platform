@@ -3,11 +3,11 @@ package be.doeraene.components
 import be.doeraene.cli.CustomGameStateParser
 import be.doeraene.components.router.Router
 import be.doeraene.facades.jszip
-import be.doeraene.facades.jszip.{GenerateOptions, JSZip}
+import be.doeraene.facades.jszip.JSZip
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
-import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
+import be.doeraene.models.{AIGameOption, WithTime, GameHistory as GameHistoryModel}
 import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 import com.raquo.laminar.api.L.*

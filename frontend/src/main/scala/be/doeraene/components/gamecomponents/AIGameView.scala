@@ -1,9 +1,9 @@
 package be.doeraene.components.gamecomponents
 
+import be.doeraene.communication.AIApi.*
 import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
-import be.doeraene.communication.AIApi.*
-import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
+import be.doeraene.models.{AIGameOption, PlayerName, WithTime, GameHistory as GameHistoryModel}
 import be.doeraene.workers.NeuralModels
 import com.raquo.laminar.api.L.*
 

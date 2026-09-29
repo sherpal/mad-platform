@@ -3,13 +3,11 @@ package be.doeraene.components
 import be.doeraene.components.*
 import be.doeraene.components.gamecomponents.PlayerFrame
 import be.doeraene.mad.game.*
-import be.doeraene.models.{GameHistory as GameHistoryModel, PlayerName, WithTime}
+import be.doeraene.models.{PlayerName, WithTime, GameHistory as GameHistoryModel}
 import be.doeraene.webcomponents.ui5.{Bar, Button, Dialog}
 import com.raquo.laminar.api.L.*
 
-import java.time.*
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{span as _, *}
 
 object GameView {
 
@@ -38,8 +36,6 @@ object GameView {
 
     val gameHistorySignal = allActionsSignal.map(actions => GameHistoryModel(initialGameState, actions.toVector))
     val playerIsPlaying   = gameStateSignal.map(_.turnOfTeam == playerTeam)
-
-    val playerNameLabel = "player-name"
 
     val playNotifications: EventBus[Unit] = new EventBus
 

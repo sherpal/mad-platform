@@ -14,6 +14,7 @@ val usedScalacOptions = List(
   "-encoding",
   "utf8",
   "-Werror",
+  "-Wunused:linted",
   "-deprecation",
   "-unchecked",
   "-language:higherKinds",

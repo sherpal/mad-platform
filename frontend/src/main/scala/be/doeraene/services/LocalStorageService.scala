@@ -1,10 +1,10 @@
 package be.doeraene.services
 
-import io.circe.{Decoder, Encoder}
-import io.circe.syntax.*
-import org.scalajs.dom
 import be.doeraene.services.LocalStorageService.StoredValue
 import io.circe.parser.decode
+import io.circe.syntax.*
+import io.circe.{Decoder, Encoder}
+import org.scalajs.dom
 
 class LocalStorageService {
 

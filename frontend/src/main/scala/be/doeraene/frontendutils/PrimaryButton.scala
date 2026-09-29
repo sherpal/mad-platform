@@ -1,10 +1,9 @@
 package be.doeraene.frontendutils
 
-import com.raquo.laminar.api.L.*
 import be.doeraene.webcomponents.ui5.*
+import be.doeraene.webcomponents.ui5.configkeys.{ButtonDesign, IconName}
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import be.doeraene.webcomponents.ui5.configkeys.IconName
-import be.doeraene.webcomponents.ui5.configkeys.ButtonDesign
 
 object PrimaryButton {
 

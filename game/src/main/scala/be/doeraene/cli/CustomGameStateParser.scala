@@ -1,13 +1,10 @@
 package be.doeraene.cli
 
-import be.doeraene.mad.game.{GamePiece, GameState, Positions}
 import be.doeraene.mad.game.GameState.AnyGameState
+import be.doeraene.mad.game.{GameBoundaries, GamePiece, GameState}
 
 import java.time.LocalDateTime
-
-import scala.util.Try
-import be.doeraene.mad.game.GameBoundaries
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 /** [[GameStateParser]] reading string in format:
   * {{{
@@ -40,9 +37,11 @@ object CustomGameStateParser extends GameStateParser:
         s"Unknown shape: $shape."
       )
 
-  private final class MissingGameTypeParam() extends RuntimeException("Game Type information was missing from the contents.")
+  private final class MissingGameTypeParam()
+      extends RuntimeException("Game Type information was missing from the contents.")
 
-  private final class UnknownGameType(gameType: GameBoundaries.GameType) extends RuntimeException(s"Unknown game type: $gameType")
+  private final class UnknownGameType(gameType: GameBoundaries.GameType)
+      extends RuntimeException(s"Unknown game type: $gameType")
 
   def shapeParser(value: String): Either[Throwable, (Int, Int)] =
     value.split(",").map(_.trim) match {
@@ -65,7 +64,7 @@ object CustomGameStateParser extends GameStateParser:
       case _      => Left(UnknownShape(shape))
     }
 
-  //noinspection MapGetOrElseBoolean
+  // noinspection MapGetOrElseBoolean
   def createGameState(
       gameBoundaries: GameBoundaries
   )(map: Map[String, String]) =
@@ -125,7 +124,8 @@ object CustomGameStateParser extends GameStateParser:
           case Array()           => Left(new RuntimeException("Line contains no info"))
           case Array(s)          => Left(new RuntimeException(s"Line only contained `$s` but no colon"))
           case Array(key, value) => Right((key, value))
-          case theArray                 => Left(new RuntimeException(s"Line contained more than 1 colon. The array was: ${theArray.mkString(", ")}"))
+          case theArray =>
+            Left(new RuntimeException(s"Line contained more than 1 colon. The array was: ${theArray.mkString(", ")}"))
         }
         .foldLeft[Either[Throwable, List[(String, String)]]](Right(List.empty[(String, String)]))(
           (maybeCurrentElements, maybeNewPair) =>
@@ -137,13 +137,19 @@ object CustomGameStateParser extends GameStateParser:
       map = keyPairs.toMap
       version <- map.getOrElse("Version", "0").toIntOption.toRight(new RuntimeException("Malformed version number."))
       boundaries <-
-        if version == 0 then Right(GameBoundaries.originalSixByFour) 
-        else if version == 1 then map.get("Shape").toRight(MissingShapeParam()).flatMap(shapeParser).flatMap {
-          case (6, 4) => Right(GameBoundaries.originalSixByFour)
-          case (5, 5) => Right(GameBoundaries.defaultFiveByFive)
-          case shape => Left(UnknownShape(shape))
-        }
-        else map.get("Game Type").toRight(MissingGameTypeParam()).flatMap(GameBoundaries.GameType.fromString).flatMap(gameType => GameBoundaries.gameBoundaryByGameType.get(gameType).toRight(UnknownGameType(gameType)))
+        if version == 0 then Right(GameBoundaries.originalSixByFour)
+        else if version == 1 then
+          map.get("Shape").toRight(MissingShapeParam()).flatMap(shapeParser).flatMap {
+            case (6, 4) => Right(GameBoundaries.originalSixByFour)
+            case (5, 5) => Right(GameBoundaries.defaultFiveByFive)
+            case shape  => Left(UnknownShape(shape))
+          }
+        else
+          map
+            .get("Game Type")
+            .toRight(MissingGameTypeParam())
+            .flatMap(GameBoundaries.GameType.fromString)
+            .flatMap(gameType => GameBoundaries.gameBoundaryByGameType.get(gameType).toRight(UnknownGameType(gameType)))
       gameState <- createGameState(boundaries)(map)
     } yield gameState
 

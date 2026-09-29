@@ -1,6 +1,6 @@
 package be.doeraene.mad.ai.minimax
 
-import be.doeraene.mad.game.{GameAction, GamePiece, GameState, PieceEvaluator, Team}
+import be.doeraene.mad.game.*
 import be.doeraene.perf.{NatArray, ParColIfPossible}
 
 import scala.reflect.ClassTag

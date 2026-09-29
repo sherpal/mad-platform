@@ -1,10 +1,10 @@
 package be.doeraene.mad.game
 
+import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
+import be.doeraene.mad.game.GameAction.*
+import be.doeraene.mad.game.Positions.*
 import org.scalacheck.*
 import org.scalacheck.Prop.*
-import GameAction.*
-import Positions.*
-import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
 
 object PieceEvaluatorChecks extends Properties("Piece Evaluator") {
 

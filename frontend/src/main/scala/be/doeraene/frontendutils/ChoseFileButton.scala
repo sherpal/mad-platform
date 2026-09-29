@@ -1,10 +1,8 @@
 package be.doeraene.frontendutils
 
-import com.raquo.laminar.api.L.*
-import com.raquo.laminar.nodes.ReactiveElement
-import org.scalajs.dom
-import be.doeraene.webcomponents.ui5.configkeys.IconName
 import be.doeraene.webcomponents.ui5.*
+import com.raquo.laminar.api.L.*
+import org.scalajs.dom
 
 object ChoseFileButton {
 

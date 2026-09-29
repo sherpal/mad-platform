@@ -1,19 +1,15 @@
 package be.doeraene.utils.communication
 
 import be.doeraene.mad.game.*
-import be.doeraene.mad.game.GamePiece.*
-import be.doeraene.mad.game.Positions.*
-import io.circe.parser.decode as circeDecode
-import Translator.{Json, JsonTranslator}
 import be.doeraene.mad.game.GameBoundaries.GameType
+import be.doeraene.mad.game.Positions.*
 import be.doeraene.models.*
+import io.circe.generic.semiauto.*
+import io.circe.{Codec as CirceCodec, Decoder as CirceDecoder, Encoder as CirceEncoder}
 
 import java.time.LocalDateTime
-import io.circe.generic.semiauto.*
-import io.circe.{Codec as CirceCodec, Decoder as CirceDecoder, Encoder as CirceEncoder, KeyEncoder}
-
-import scala.util.Try
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 object MadTranslators:
 

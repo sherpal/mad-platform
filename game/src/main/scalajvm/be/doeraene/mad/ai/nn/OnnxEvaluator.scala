@@ -1,15 +1,14 @@
 package be.doeraene.mad.ai.nn
 
-import java.nio.FloatBuffer
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
-
-import scala.jdk.CollectionConverters.*
-
 import ai.onnxruntime.{OnnxTensor, OrtEnvironment, OrtSession}
 import be.doeraene.mad.ai.nn.mcts.{BatchEvaluator, Evaluation}
 import be.doeraene.mad.game.{GameBoundaries, GameState}
 import be.doeraene.perf.NatArray
+
+import java.nio.FloatBuffer
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.jdk.CollectionConverters.*
 
 /** Runs an exported network on the JVM, for self-play and for benchmarking against the minimax.
   *

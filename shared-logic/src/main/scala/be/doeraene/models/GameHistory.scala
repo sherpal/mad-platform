@@ -4,8 +4,8 @@ import be.doeraene.mad.game.*
 import be.doeraene.models.WithTime.time.Time
 import be.doeraene.utils.communication.MadTranslators.given
 import cats.kernel.Monoid
-import io.circe.generic.semiauto.*
 import io.circe.*
+import io.circe.generic.semiauto.*
 
 import java.time.LocalDateTime
 
@@ -47,7 +47,6 @@ final case class GameHistory(
           .zipWithIndex
           .filter((_, index) => playerAtActionIndex(index) == team)
           .map { (timeOfAction, actionIndex) =>
-            val actionTeam           = playerAtActionIndex(actionIndex)
             val timeOfPreviousAction = if actionIndex == 0 then Time.zero else actions(actionIndex - 1).time
             val thinkingTime         = timeOfAction - timeOfPreviousAction
             thinkingTime

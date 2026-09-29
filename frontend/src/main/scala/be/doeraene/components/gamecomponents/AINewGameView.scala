@@ -1,24 +1,23 @@
 package be.doeraene.components.gamecomponents
 
 import be.doeraene.components.RouteDefinitions.*
+import be.doeraene.components.router.Router.router
+import be.doeraene.frontendutils.PrimaryButton
 import be.doeraene.mad.game.*
-import be.doeraene.workers.NeuralModels
-import be.doeraene.utils.communication.MadTranslators.given
+import be.doeraene.mad.game.GameBoundaries.GameType
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel}
 import be.doeraene.services.LocalStorageService
 import be.doeraene.utils.communication.MadTranslators
+import be.doeraene.webcomponents.ui5.*
+import be.doeraene.webcomponents.ui5.configkeys.IconName
+import be.doeraene.workers.NeuralModels
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.scalajs.dom
 import org.scalajs.dom.HTMLDivElement
 import urldsl.errors.DummyError
 import urldsl.language.PathSegment
 import urldsl.language.dummyErrorImpl.*
-import be.doeraene.components.router.Router.router
-import be.doeraene.frontendutils.PrimaryButton
-import be.doeraene.mad.game.GameBoundaries.GameType
-import be.doeraene.webcomponents.ui5.*
-import be.doeraene.webcomponents.ui5.configkeys.IconName
-import org.scalajs.dom
 
 object AINewGameView {
 
@@ -73,14 +72,6 @@ object AINewGameView {
         _.events.onChange.map(_.target.checked) --> unrestrictedMoveOnFirstTurnVar.writer
       )
     )
-
-    val turnAhead = Var(4)
-    /* Defaults to the network because it is simply the stronger player now: searching over it beats the
-     * minimax at depth 4, which is the minimax's own best setting. The old engine stays selectable -
-     * it is what every previous game was played against, and it is the only one that works if the model
-     * has not been fetched. */
-    val useNeural   = Var(true)
-    val simulations = Var(800)
 
     val difficultyLevelVar = Var(3)
 

@@ -1,13 +1,13 @@
 package be.doeraene.components
 
-import com.raquo.laminar.api.L.*
-import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
 import be.doeraene.components.RouteDefinitions.*
-import be.doeraene.webcomponents.ui5.*
-import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
+import be.doeraene.frontendutils.SecondaryButton
+import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
-import org.scalajs.dom
+import be.doeraene.webcomponents.ui5.*
 import be.doeraene.webcomponents.ui5.configkeys.IconName
+import com.raquo.laminar.api.L.*
+import org.scalajs.dom
 
 object GameHistory:
 

@@ -1,7 +1,6 @@
 package be.doeraene.mad.game
 
-import Positions.*
-import GamePiece.*
+import be.doeraene.mad.game.GamePiece.*
 import be.doeraene.perf.NatArray
 
 /** Represents the board of the Mad game.

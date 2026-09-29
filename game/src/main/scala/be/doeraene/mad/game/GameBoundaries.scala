@@ -1,13 +1,9 @@
 package be.doeraene.mad.game
 
-import Ranges.*
-import scala.util.Try
-import Positions.Direction
-import scala.compiletime.ops.int.{< => <<}
-import scala.compiletime.ops.int.{>= => >>=}
-import scala.language.implicitConversions
+import be.doeraene.mad.game.Positions.Direction
 
-import scala.compiletime.constValue
+import scala.language.implicitConversions
+import scala.util.Try
 
 sealed trait GameBoundaries {
 
@@ -137,14 +133,14 @@ object GameBoundaries:
       blue121 -> Position(1, 0),
       blue122 -> Position(1, 2),
       blue112 -> Position(1, 4),
-      red121 -> Position(3, 0),
-      red122 -> Position(3, 2),
-      red112 -> Position(3, 4),
-      red221 -> Position(4, 0),
-      red111 -> Position(4, 1),
-      red211 -> Position(4, 2),
-      red222 -> Position(4, 3),
-      red212 -> Position(4, 4)
+      red121  -> Position(3, 0),
+      red122  -> Position(3, 2),
+      red112  -> Position(3, 4),
+      red221  -> Position(4, 0),
+      red111  -> Position(4, 1),
+      red211  -> Position(4, 2),
+      red222  -> Position(4, 3),
+      red212  -> Position(4, 4)
     ).collect { case (piece, Some(position)) =>
       piece -> position
     }
@@ -160,14 +156,14 @@ object GameBoundaries:
       blue122 -> Position(1, 1),
       blue211 -> Position(1, 2),
       blue112 -> Position(1, 3),
-      red121 -> Position(4, 0),
-      red122 -> Position(4, 1),
-      red211 -> Position(4, 2),
-      red112 -> Position(4, 3),
-      red221 -> Position(5, 0),
-      red111 -> Position(5, 1),
-      red222 -> Position(5, 2),
-      red212 -> Position(5, 3)
+      red121  -> Position(4, 0),
+      red122  -> Position(4, 1),
+      red211  -> Position(4, 2),
+      red112  -> Position(4, 3),
+      red221  -> Position(5, 0),
+      red111  -> Position(5, 1),
+      red222  -> Position(5, 2),
+      red212  -> Position(5, 3)
     ).collect { case (piece, Some(position)) =>
       piece -> position
     }
@@ -201,14 +197,14 @@ object GameBoundaries:
       blue122 -> Position(1, 2),
       blue211 -> Position(1, 3),
       blue112 -> Position(1, 5),
-      red121 -> Position(4, 1),
-      red122 -> Position(4, 2),
-      red211 -> Position(4, 3),
-      red112 -> Position(4, 5),
-      red221 -> Position(4, 0),
-      red111 -> Position(5, 2),
-      red222 -> Position(5, 3),
-      red212 -> Position(4, 4)
+      red121  -> Position(4, 1),
+      red122  -> Position(4, 2),
+      red211  -> Position(4, 3),
+      red112  -> Position(4, 5),
+      red221  -> Position(4, 0),
+      red111  -> Position(5, 2),
+      red222  -> Position(5, 3),
+      red212  -> Position(4, 4)
     ).collect { case (piece, Some(position)) =>
       piece -> position
     }
@@ -243,14 +239,14 @@ object GameBoundaries:
       blue122 -> Position(1, 2),
       blue211 -> Position(1, 3),
       blue112 -> Position(2, 3),
-      red121 -> Position(4, 2),
-      red122 -> Position(5, 2),
-      red211 -> Position(5, 3),
-      red112 -> Position(4, 3),
-      red221 -> Position(5, 1),
-      red111 -> Position(6, 2),
-      red222 -> Position(6, 3),
-      red212 -> Position(5, 4)
+      red121  -> Position(4, 2),
+      red122  -> Position(5, 2),
+      red211  -> Position(5, 3),
+      red112  -> Position(4, 3),
+      red221  -> Position(5, 1),
+      red111  -> Position(6, 2),
+      red222  -> Position(6, 3),
+      red212  -> Position(5, 4)
     ).collect { case (piece, Some(position)) =>
       piece -> position
     }
@@ -284,9 +280,9 @@ object GameBoundaries:
   }
 
   val gameBoundaryByGameType: Map[GameType, GameBoundaries] = Map(
-    _6by4 -> OriginalSixByFour(),
-    _5by5 -> DefaultFiveByFive(),
-    _4by6 -> DefaultFourBySix(),
+    _6by4        -> OriginalSixByFour(),
+    _5by5        -> DefaultFiveByFive(),
+    _4by6        -> DefaultFourBySix(),
     aztecDiamond -> AztecDiamond()
   )
 

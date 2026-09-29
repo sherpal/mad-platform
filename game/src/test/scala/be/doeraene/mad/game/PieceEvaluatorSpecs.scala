@@ -1,8 +1,8 @@
 package be.doeraene.mad.game
 
-import Positions.*
 import be.doeraene.mad.ai.minimax.{Node, TreeExplorer}
-import GamePiece.*
+import be.doeraene.mad.game.GamePiece.*
+import be.doeraene.mad.game.Positions.*
 
 class PieceEvaluatorSpecs extends munit.FunSuite {
 

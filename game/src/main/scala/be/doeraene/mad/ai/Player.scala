@@ -1,8 +1,8 @@
 package be.doeraene.mad.ai
 
-import be.doeraene.mad.ai.minimax.{Function1Like, Node, TreeExplorer}
 import be.doeraene.mad.ai.minimax.Function1Like.act
-import be.doeraene.mad.game.{GameAction, GameState, PieceEvaluator, Positions, Team}
+import be.doeraene.mad.ai.minimax.{Function1Like, Node, TreeExplorer}
+import be.doeraene.mad.game.*
 
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit

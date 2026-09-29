@@ -1,8 +1,8 @@
 package be.doeraene.mad.game
 
+import be.doeraene.mad.game.GameAction.*
 import org.scalacheck.*
 import org.scalacheck.Prop.*
-import GameAction.*
 
 import scala.reflect.ClassTag
 

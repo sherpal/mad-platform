@@ -1,26 +1,11 @@
 package be.doeraene.components.gamecomponents
 
-import com.raquo.laminar.api.L.*
-import be.doeraene.components.router.Link
-import be.doeraene.components.router.Router.router
-import be.doeraene.models.PlayerName
-import be.doeraene.components.RouteDefinitions.playAIGame
-import be.doeraene.mad.game.*
-import be.doeraene.utils.communication.MadTranslators.given
-import be.doeraene.models.GameHistory as GameHistoryModel
-import be.doeraene.components.router.Router.router
-import io.circe.generic.auto.*
-import org.scalajs.dom.html
-import org.scalajs.dom
-import org.scalajs.dom.FormData
-import org.scalajs.dom.Fetch.fetch
-import be.doeraene.communication.makeCall.postFormData
-import be.doeraene.components.{linkModifiers, moveToPath}
-import io.circe.Encoder
 import be.doeraene.components.RouteDefinitions.*
+import be.doeraene.components.moveToPath
 import be.doeraene.frontendutils.PrimaryButton
+import be.doeraene.models.PlayerName
 import be.doeraene.webcomponents.ui5.configkeys.IconName
-import be.doeraene.webcomponents.ui5.*
+import com.raquo.laminar.api.L.*
 
 object AIPreGameView:
 

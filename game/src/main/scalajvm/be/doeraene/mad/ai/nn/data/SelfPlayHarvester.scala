@@ -1,11 +1,11 @@
 package be.doeraene.mad.ai.nn.data
 
-import scala.collection.parallel.CollectionConverters.*
-import scala.util.Random
-
 import be.doeraene.mad.ai.nn.mcts.{BatchEvaluator, RootNoise, SearchConfig, SearchTree}
 import be.doeraene.mad.ai.nn.{ActionIndex, Canonical, StateEncoder}
 import be.doeraene.mad.game.{GameBoundaries, GameState, Team}
+
+import scala.collection.parallel.CollectionConverters.*
+import scala.util.Random
 
 /** Generates training data by having a network play itself, with the search as the teacher.
   *

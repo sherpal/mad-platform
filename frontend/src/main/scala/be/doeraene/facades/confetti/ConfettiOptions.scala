@@ -1,8 +1,6 @@
 package be.doeraene.facades.confetti
 
 import scala.scalajs.js
-import scala.scalajs.js.`|`
-import scala.scalajs.js.annotation.{JSBracketAccess, JSGlobal, JSGlobalScope, JSImport, JSName}
 
 //noinspection ScalaDocUnknownTag
 @js.native

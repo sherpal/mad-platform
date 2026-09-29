@@ -5,8 +5,8 @@ import org.scalacheck.Prop.*
 
 object CustomGameStateParserChecks extends Properties("Game State Parser") {
 
-  import be.doeraene.mad.game.GameActionChecks.{fiveByFiveGameStateGen, sixByFourGameStateGen}
   import CustomGameStateParser.*
+  import be.doeraene.mad.game.GameActionChecks.{fiveByFiveGameStateGen, sixByFourGameStateGen}
 
   property("Round trip of game state parser works") = forAll(sixByFourGameStateGen) { gameState =>
     val generated = generate(gameState)

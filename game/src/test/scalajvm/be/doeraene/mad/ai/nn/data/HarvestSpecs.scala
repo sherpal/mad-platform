@@ -1,12 +1,12 @@
 package be.doeraene.mad.ai.nn.data
 
-import java.nio.file.{Files, Path}
-import java.nio.{ByteBuffer, ByteOrder}
-import java.util.zip.GZIPInputStream
-
 import be.doeraene.mad.ai.Player
 import be.doeraene.mad.ai.nn.{ActionIndex, StateEncoder}
 import be.doeraene.mad.game.GameBoundaries
+
+import java.nio.file.{Files, Path}
+import java.nio.{ByteBuffer, ByteOrder}
+import java.util.zip.GZIPInputStream
 
 /** Checks the harvest end of the pipeline, on the Scala side of the language boundary.
   *

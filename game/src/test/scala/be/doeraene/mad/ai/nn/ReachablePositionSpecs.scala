@@ -1,9 +1,9 @@
 package be.doeraene.mad.ai.nn
 
-import scala.util.Random
-
-import be.doeraene.mad.game.*
 import be.doeraene.mad.ai.nn.NnTestSupport.*
+import be.doeraene.mad.game.*
+
+import scala.util.Random
 
 /** The same laws as [[CanonicalChecks]], but on positions a game can actually reach.
   *

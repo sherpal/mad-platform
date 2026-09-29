@@ -1,28 +1,15 @@
 package be.doeraene.communication
 
-import be.doeraene.mad.game.*
-
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import scala.util.Success
-import scala.scalajs.js
-import scala.util.Random
-
-import be.doeraene.utils.communication.MadTranslators.given
-import io.circe.generic.auto.*
 import be.doeraene.communication.WorkerAPI.makeWorkerCompute
-import be.doeraene.workers.WorkerProtocol.{
-  CurrentGameStateWithSelectedAction,
-  GameActionWithScore,
-  NeuralMove,
-  NeuralMoveRequest
-}
-import scala.concurrent.ExecutionContext
-import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.Promise
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicBoolean
+import be.doeraene.mad.game.*
+import be.doeraene.utils.communication.MadTranslators.given
+import be.doeraene.workers.WorkerProtocol.{CurrentGameStateWithSelectedAction, NeuralMoveRequest}
+
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.scalajs.js
+import scala.util.{Random, Success}
 
 object AIApi:
 
@@ -66,14 +53,14 @@ object AIApi:
 
   /** Asks the neural engine for a move.
     *
-    * One worker round-trip for the whole move, unlike [[askNextAction]], which spawns a worker per
-    * candidate move and scores each independently. A tree search decides for itself where to spend its
-    * next simulation, so it cannot be split up that way - and it does not need to be, since the network
-    * evaluates a position in well under a millisecond.
+    * One worker round-trip for the whole move, unlike [[askNextAction]], which spawns a worker per candidate move and
+    * scores each independently. A tree search decides for itself where to spend its next simulation, so it cannot be
+    * split up that way - and it does not need to be, since the network evaluates a position in well under a
+    * millisecond.
     *
     * @param simulations
-    *   how many leaves the search visits. Strength against how long the move takes; a few hundred is
-    *   quick, a few thousand is stronger and noticeably slower in a browser.
+    *   how many leaves the search visits. Strength against how long the move takes; a few hundred is quick, a few
+    *   thousand is stronger and noticeably slower in a browser.
     */
   def askNeuralAction(currentGameState: GameState, simulations: Int): Future[GameAction] =
     println(s"Asking the neural worker for a move ($simulations simulations)...")

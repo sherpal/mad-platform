@@ -1,16 +1,11 @@
 package be.doeraene.components
 
-import be.doeraene.mad.game.*
-import com.raquo.laminar.api.L.*
 import be.doeraene.facades.confetti.confetti
 import be.doeraene.frontendutils.PrimaryButton
+import be.doeraene.mad.game.*
 import be.doeraene.webcomponents.ui5.*
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-
-import io.circe.generic.auto.*
-import io.circe.syntax.*
-import be.doeraene.utils.communication.MadTranslators.given
-import be.doeraene.utils.communication.JsonTranslator
 
 object GameEndedDisplay:
   def apply(

@@ -1,7 +1,7 @@
 package be.doeraene.components
 
-import com.raquo.laminar.api.L.*
 import be.doeraene.mad.game.*
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.scalajs.js

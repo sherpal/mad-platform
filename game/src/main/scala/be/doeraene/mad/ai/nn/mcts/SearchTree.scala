@@ -1,29 +1,29 @@
 package be.doeraene.mad.ai.nn.mcts
 
+import be.doeraene.mad.ai.nn.Canonical
+import be.doeraene.mad.game.{GameAction, GameState}
+import be.doeraene.perf.NatArray
+
 import scala.collection.mutable
 import scala.util.Random
-
-import be.doeraene.mad.ai.nn.{ActionIndex, Canonical}
-import be.doeraene.mad.game.{GameAction, GameState, Team}
-import be.doeraene.perf.NatArray
 
 /** @param simulations
   *   how many leaves to visit before the search is done. The main strength/time dial.
   * @param batchSize
-  *   how many leaves to gather before asking the network about them. Bigger batches keep the backend
-  *   busier but make the search slightly less informed, since every leaf in a batch is chosen without
-  *   knowing what the others turned out to be worth.
+  *   how many leaves to gather before asking the network about them. Bigger batches keep the backend busier but make
+  *   the search slightly less informed, since every leaf in a batch is chosen without knowing what the others turned
+  *   out to be worth.
   * @param explorationConstant
   *   PUCT's c. Higher trusts the network's prior less and the tree's own statistics more.
   * @param virtualLoss
-  *   how many pretend-lost visits to hang on an edge while a leaf below it is out for evaluation. Zero
-  *   would make a whole batch take the same path.
+  *   how many pretend-lost visits to hang on an edge while a leaf below it is out for evaluation. Zero would make a
+  *   whole batch take the same path.
   */
 /** Exploration noise mixed into the root's priors, for self-play only.
   *
   * @param alpha
-  *   Dirichlet concentration. Below 1 the draw is lumpy, which is what is wanted: a handful of moves
-  *   boosted a lot, rather than every move nudged a little.
+  *   Dirichlet concentration. Below 1 the draw is lumpy, which is what is wanted: a handful of moves boosted a lot,
+  *   rather than every move nudged a little.
   * @param weight
   *   how much of the root prior the noise replaces.
   */
@@ -34,18 +34,18 @@ final case class SearchConfig(
     batchSize: Int = 16,
     explorationConstant: Double = 1.4,
     virtualLoss: Int = 1,
-    /** Left off for play and for benchmarking, where the strongest move is wanted and reproducibility
-      * matters. Self-play turns it on; see [[RootNoise]].
+    /** Left off for play and for benchmarking, where the strongest move is wanted and reproducibility matters.
+      * Self-play turns it on; see [[RootNoise]].
       */
     rootNoise: Option[RootNoise] = None
 )
 
 /** Monte-Carlo tree search, driven from outside rather than driving itself.
   *
-  * The usual shape for this is a loop that calls the network whenever it reaches a leaf. That cannot
-  * work on both platforms this has to run on: in the browser the only way to run a model is a
-  * promise-returning call, so a search that evaluated inline would have to be asynchronous all the way
-  * down, and the JVM would pay for that structure without needing it.
+  * The usual shape for this is a loop that calls the network whenever it reaches a leaf. That cannot work on both
+  * platforms this has to run on: in the browser the only way to run a model is a promise-returning call, so a search
+  * that evaluated inline would have to be asynchronous all the way down, and the JVM would pay for that structure
+  * without needing it.
   *
   * So the tree does not evaluate anything. It gathers leaves and hands them over:
   * {{{
@@ -53,35 +53,35 @@ final case class SearchConfig(
   *     val batch = tree.selectBatch()
   *     if batch.nonEmpty then tree.submit(evaluator.evaluate(batch))
   * }}}
-  * On the JVM that loop is [[Mcts.search]]. In a worker the same loop awaits a promise instead. The
-  * search itself is identical, synchronous and testable on both.
+  * On the JVM that loop is [[Mcts.search]]. In a worker the same loop awaits a promise instead. The search itself is
+  * identical, synchronous and testable on both.
   *
-  * Positions are canonicalised on the way out and moves mapped back on the way in (see [[Canonical]]),
-  * so the network only ever sees red to move.
+  * Positions are canonicalised on the way out and moves mapped back on the way in (see [[Canonical]]), so the network
+  * only ever sees red to move.
   *
-  * No Dirichlet noise at the root: this plays, it does not generate training data. Self-play will want
-  * it, and that is where it belongs.
+  * No Dirichlet noise at the root: this plays, it does not generate training data. Self-play will want it, and that is
+  * where it belongs.
   */
 final class SearchTree(rootState: GameState, config: SearchConfig, random: Random = Random(0L)):
 
   import SearchTree.*
 
-  private val root                            = Node(rootState)
-  private var simulationsStarted              = 0
-  private var simulationsFinished             = 0
+  private val root                                = Node(rootState)
+  private var simulationsStarted                  = 0
+  private var simulationsFinished                 = 0
   private val inFlight: mutable.ArrayBuffer[Path] = mutable.ArrayBuffer.empty
 
-  /** True once every simulation has been backed up. Note that having started them all is not enough:
-    * the last batch is still out for evaluation, and its results are what the answer is made of.
+  /** True once every simulation has been backed up. Note that having started them all is not enough: the last batch is
+    * still out for evaluation, and its results are what the answer is made of.
     */
   def isDone: Boolean = simulationsFinished >= config.simulations
 
-  /** Walks down from the root up to [[SearchConfig.batchSize]] times and returns the leaves that need a
-    * network evaluation.
+  /** Walks down from the root up to [[SearchConfig.batchSize]] times and returns the leaves that need a network
+    * evaluation.
     *
-    * Terminal leaves are settled on the spot - the rules already say what they are worth, exactly, and
-    * asking a network to guess at a position whose winner is known would be strictly worse. So the
-    * result can be shorter than the batch size, or empty, while the search still made progress.
+    * Terminal leaves are settled on the spot - the rules already say what they are worth, exactly, and asking a network
+    * to guess at a position whose winner is known would be strictly worse. So the result can be shorter than the batch
+    * size, or empty, while the search still made progress.
     */
   def selectBatch(): NatArray[GameState] =
     inFlight.clear()
@@ -120,8 +120,7 @@ final class SearchTree(rootState: GameState, config: SearchConfig, random: Rando
       path.leaf.expand(evaluation.policyLogits)
       // The root is expanded like any other leaf, on the first simulation, so this is the moment its
       // priors exist and can be perturbed.
-      if (path.leaf eq root) && config.rootNoise.isDefined then
-        root.mixInNoise(config.rootNoise.get, random)
+      if (path.leaf eq root) && config.rootNoise.isDefined then root.mixInNoise(config.rootNoise.get, random)
       backup(path, evaluation.value.toDouble)
       simulationsFinished += 1
       index += 1
@@ -129,9 +128,9 @@ final class SearchTree(rootState: GameState, config: SearchConfig, random: Rando
 
   /** How often each of the root's moves was visited - the search's actual answer.
     *
-    * Visit counts rather than the values behind them: a move that looked good once and was never
-    * confirmed has a high average and means nothing, while the move the search kept coming back to is
-    * the one it believes in. This is also the policy target self-play will train on.
+    * Visit counts rather than the values behind them: a move that looked good once and was never confirmed has a high
+    * average and means nothing, while the move the search kept coming back to is the one it believes in. This is also
+    * the policy target self-play will train on.
     */
   def rootVisits: NatArray[(GameAction, Int)] =
     if !root.isExpanded then NatArray.empty[(GameAction, Int)]
@@ -153,9 +152,9 @@ final class SearchTree(rootState: GameState, config: SearchConfig, random: Rando
 
   /** Picks a move from the visit counts, with `temperature` deciding how much to explore.
     *
-    * Zero means always the most-visited move, which is what a game being played for real wants. Self-play
-    * wants the opening plies sampled instead: with a deterministic pick, a given network plays one game
-    * per opening and the training set is that one game over and over.
+    * Zero means always the most-visited move, which is what a game being played for real wants. Self-play wants the
+    * opening plies sampled instead: with a deterministic pick, a given network plays one game per opening and the
+    * training set is that one game over and over.
     */
   def sampleAction(temperature: Double, sampler: Random): GameAction =
     val visits = rootVisits
@@ -235,9 +234,9 @@ final class SearchTree(rootState: GameState, config: SearchConfig, random: Rando
 
   /** What a finished game is worth to the player whose turn it would be.
     *
-    * A game ends either because somebody's 111 was taken or because 30 turns went by without a capture.
-    * In the first case the side to move is the one that just lost its 111 - it cannot be the winner -
-    * and in the second it is a draw.
+    * A game ends either because somebody's 111 was taken or because 30 turns went by without a capture. In the first
+    * case the side to move is the one that just lost its 111 - it cannot be the winner - and in the second it is a
+    * draw.
     */
   private def terminalValue(state: GameState): Double = state.maybeWinner match
     case Some(winner) => if winner == state.turnOfTeam then 1.0 else -1.0
@@ -252,9 +251,8 @@ object SearchTree:
 
   /** A position in the tree.
     *
-    * Edge statistics live in parallel arrays on the parent rather than in child objects: the selection
-    * loop reads every edge of a node on every single descent, and a search does that hundreds of
-    * thousands of times.
+    * Edge statistics live in parallel arrays on the parent rather than in child objects: the selection loop reads every
+    * edge of a node on every single descent, and a search does that hundreds of thousands of times.
     */
   private final class Node(val state: GameState):
     var visits: Int      = 0
@@ -317,9 +315,9 @@ object SearchTree:
 
   /** Softmax of the network's logits over the legal moves only.
     *
-    * Masking before the softmax rather than after: the network is never trained to rank moves that
-    * cannot be played, so whatever it says about them is noise, and letting that noise into the
-    * normaliser would quietly shrink every real prior by an arbitrary amount.
+    * Masking before the softmax rather than after: the network is never trained to rank moves that cannot be played, so
+    * whatever it says about them is noise, and letting that noise into the normaliser would quietly shrink every real
+    * prior by an arbitrary amount.
     */
   private def priorsFrom(
       policyLogits: Array[Float],

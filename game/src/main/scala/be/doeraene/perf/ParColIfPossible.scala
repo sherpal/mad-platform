@@ -6,7 +6,7 @@ trait ParColIfPossible[T] {
 
   def map[U](f: T => U)(using ClassTag[U]): ParColIfPossible[U]
 
-  def toNatArray(using ClassTag[T]): NatArray[T]
+  def toNatArray: NatArray[T]
 
 }
 

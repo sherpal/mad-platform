@@ -1,9 +1,9 @@
 package be.doeraene.mad.ai.nn.mcts
 
-import scala.util.Random
-
 import be.doeraene.mad.ai.nn.ActionIndex
 import be.doeraene.mad.game.{GameBoundaries, GameState}
+
+import scala.util.Random
 
 /** Covers the two bits of randomness self-play adds to the search.
   *

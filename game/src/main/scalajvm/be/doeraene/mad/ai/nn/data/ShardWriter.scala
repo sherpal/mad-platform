@@ -1,13 +1,13 @@
 package be.doeraene.mad.ai.nn.data
 
+import be.doeraene.mad.ai.nn.{ActionIndex, StateEncoder}
+import be.doeraene.mad.game.{GameBoundaries, GamePiece}
+
 import java.io.BufferedOutputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import java.nio.{ByteBuffer, ByteOrder}
 import java.util.zip.GZIPOutputStream
-
-import be.doeraene.mad.ai.nn.{ActionIndex, StateEncoder}
-import be.doeraene.mad.game.{GameBoundaries, GamePiece}
 
 /** One labelled position, already encoded.
   *

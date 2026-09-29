@@ -1,20 +1,16 @@
 package be.doeraene
 
-import be.doeraene.mad.game.*
-import com.raquo.laminar.api.L.*
-import org.scalajs.dom
-import be.doeraene.components.router.*
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.components.gamecomponents.*
+import be.doeraene.components.moveToPath
+import be.doeraene.components.router.*
+import be.doeraene.mad.game.*
 import be.doeraene.models.{AIGameOption, GameHistory, PlayerName}
-import be.doeraene.components.{moveToPath, Constants}
-import urldsl.language.dummyErrorImpl.endOfSegments
-import org.scalajs.dom
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import be.doeraene.components
-import be.doeraene.webcomponents.ui5.{Link as _, *}
 import be.doeraene.webcomponents.ui5.configkeys.IconName
+import be.doeraene.webcomponents.ui5.{Link as _, *}
+import com.raquo.laminar.api.L.*
+import org.scalajs.dom
+import urldsl.language.dummyErrorImpl.endOfSegments
 
 object App:
 

@@ -1,20 +1,16 @@
 package be.doeraene.communication
 
-import io.circe.{Decoder, Encoder}
-
-import org.scalajs.dom.XMLHttpRequest
-import scala.concurrent.Future
-import scala.concurrent.Promise
 import io.circe.parser.decode
 import io.circe.syntax.*
+import io.circe.{Decoder, Encoder}
 import org.scalajs.dom
-import scala.util.{Failure, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import dom.FormData
-
+import org.scalajs.dom.{FormData, XMLHttpRequest}
 import urldsl.language.*
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Promise}
 import scala.scalajs.js
+import scala.util.Failure
 
 object makeCall:
 

@@ -1,7 +1,7 @@
 package be.doeraene.mad.game.errors
 
-import be.doeraene.mad.game.{GameAction, GamePiece, Positions}
 import be.doeraene.mad.game.Positions.Direction
+import be.doeraene.mad.game.{GameAction, GamePiece, Positions}
 import be.doeraene.perf.NatArray
 
 /** Represents that an action is illegal on its own.

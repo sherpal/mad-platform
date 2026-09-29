@@ -1,9 +1,8 @@
 package be.doeraene.mad.ai.nn
 
+import be.doeraene.mad.game.*
 import org.scalacheck.*
 import org.scalacheck.Prop.*
-
-import be.doeraene.mad.game.*
 
 object StateEncoderChecks extends Properties("State encoder checks"):
 

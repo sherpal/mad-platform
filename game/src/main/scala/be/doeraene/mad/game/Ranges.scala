@@ -1,8 +1,7 @@
 package be.doeraene.mad.game
 
+import scala.compiletime.ops.int.{< as <<, >= as >>=}
 import scala.language.implicitConversions
-import scala.compiletime.ops.int.{< => <<}
-import scala.compiletime.ops.int.{>= => >>=}
 
 object Ranges:
 
@@ -13,7 +12,7 @@ object Ranges:
     def apply[From <: Int: ValueOf, To <: Int: ValueOf](n: Int): Option[From < To] =
       Option.when(valueOf[From] <= n && n < valueOf[To])(n.asInstanceOf[From < To])
 
-    def apply[N <: Int: ValueOf, From <: Int: ValueOf, To <: Int: ValueOf](using
+    def apply[N <: Int: ValueOf, From <: Int, To <: Int](using
         true =:= (N >>= From),
         true =:= (N << To)
     ): From < To = valueOf[N]
@@ -23,12 +22,12 @@ object Ranges:
 
       @inline def toDouble: Double = self.toDouble
 
-    extension [From <: Int: ValueOf, To <: Int: ValueOf](self: From < To)
-      def +(that: Int): Option[From < To] = apply((self: Int) + that)
+    extension [From <: Int, To <: Int](self: From < To)
+      def +(that: Int)(using ValueOf[From], ValueOf[To]): Option[From < To] = apply((self: Int) + that)
 
       def -(that: Int): Int = self - that
 
-      def minValue: From = valueOf[From]
+      def minValue(using ValueOf[From]): From = valueOf[From]
 
     given [N <: Int, From <: Int, To <: Int](using
         true =:= (N << To),
