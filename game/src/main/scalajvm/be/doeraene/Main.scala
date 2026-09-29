@@ -284,6 +284,20 @@ import scala.util.Random
         println(s"Wrote ${writer.written} positions to $outputDir in ${time.toSeconds}s")
       finally close(evaluator)
 
+    case GameConfig.NnDescriptor(board) =>
+      val boundaries = GameConfig.boardFromAlias(board)
+      /* Printed as JSON rather than a pretty table because the only reader is a script. The field names
+       * deliberately match the harvest manifest's, so a descriptor and a manifest can be compared field by
+       * field without a translation layer in between. */
+      println(s"""{
+                 |  "gameType": "${boundaries.gameType.value}",
+                 |  "rows": ${boundaries.lastRow},
+                 |  "cols": ${boundaries.lastCol},
+                 |  "planeCount": ${be.doeraene.mad.ai.nn.StateEncoder.planeCount},
+                 |  "policySize": ${be.doeraene.mad.ai.nn.ActionIndex.teamSize},
+                 |  "actionFingerprint": ${be.doeraene.mad.ai.nn.ActionIndex.orderingFingerprint}
+                 |}""".stripMargin)
+
     case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed, board) =>
       val boundaries   = GameConfig.boardFromAlias(board)
       val games        = benchmark.Benchmark.battery(openings, seed, boundaries = boundaries)
