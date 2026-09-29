@@ -103,6 +103,11 @@ class State:
         # Which minimax depth is the real bar on this board. A property of the hand-written engine, so
         # it is measured once and remembered - the comparison costs minutes and never changes.
         self.depth: int | None = None
+        # Whether generation 0 has passed its sanity check. Recorded rather than inferred from the file
+        # existing, because the check is fatal and the model is written before it runs: inferring would
+        # mean a resume silently skips the one check that is there to stop a night being spent on a
+        # broken export.
+        self.gen0_checked = False
 
     @classmethod
     def load_or_new(cls, path: Path, board: str) -> "State":
@@ -118,6 +123,7 @@ class State:
         state.notes = saved["notes"]
         state.wall_clock = saved.get("wall_clock", 0.0)
         state.depth = saved.get("depth")
+        state.gen0_checked = saved.get("gen0_checked", False)
         return state
 
     def save(self) -> None:
@@ -132,6 +138,7 @@ class State:
             "notes": self.notes,
             "wall_clock": self.wall_clock,
             "depth": self.depth,
+            "gen0_checked": self.gen0_checked,
         }, indent=2))
         scratch.replace(self.path)
 
@@ -194,36 +201,50 @@ def descriptor_for(board: str, data: Path) -> Path:
     return path
 
 
-def make_random_network(board: str, data: Path, report: Report, force: bool) -> Path:
+def make_random_network(board: str, data: Path, state: "State", report: Report, force: bool) -> Path:
     """Generation 0: the right shape, no knowledge."""
     model = data / "gen0-model"
-    if (model / "model.onnx").exists():
-        say(f"{model} already present, skipping")
+    if (model / "model.onnx").exists() and state.gen0_checked:
+        say(f"{model} already present and checked, skipping")
         return model
 
-    heading("generation 0: a network that has never seen a game")
     descriptor = descriptor_for(board, data)
-    python_step("random_init.py", "--descriptor", str(descriptor), "--out", str(model),
-                what="building the random network")
-    python_step("export_onnx.py", str(model / "model.pt"), what="exporting the random network")
+    if not (model / "model.onnx").exists():
+        heading("generation 0: a network that has never seen a game")
+        python_step("random_init.py", "--descriptor", str(descriptor), "--out", str(model),
+                    what="building the random network")
+        python_step("export_onnx.py", str(model / "model.pt"), what="exporting the random network")
     check_fingerprints_against_descriptor(descriptor, model, force)
 
-    # It should be indistinguishable from flat-prior search, because that is exactly what it is. If it
-    # is not, the export or the encoding is wrong, and it is far cheaper to learn that now than after a
-    # night of self-play against a broken starting point.
+    # A broken export or encoding would show up here, before a night is spent on top of it. What it can
+    # and cannot prove is worth being precise about: an empty network has no way to *construct* a win, so
+    # it draws most games and scores near 50% no matter how healthy it is - 50% here was W0 L0 D12. The
+    # signal is therefore losses, not wins. A search reading a scrambled position loses to a random
+    # player; one reading a correct position does not, whatever else it fails to do.
     heading("checking the random network really is uninformed")
-    neutral = sbt(f'game/run nn-benchmark {model}/model.onnx 200 3 {{"Random":{{}}}} 6 42 16 {board}',
+    neutral = sbt(f'game/run nn-benchmark {model}/model.onnx 200 3 {{"Random":{{}}}} 12 42 16 {board}',
                   what="the random network against a random player")
     neutral_score = score_of(neutral, "the random network's score against a random player")
-    say(f"         search over an empty network beats a random player {neutral_score:.0%} of the time")
-    if neutral_score < 0.55:
+    wins, losses, draws = pipeline.wld_of(neutral)
+    say(f"         against a random player: W{wins} L{losses} D{draws} ({neutral_score:.0%}) - "
+        "mostly draws is the expected shape, because search with no knowledge can avoid losing but "
+        "cannot build a win")
+    if neutral_score < 0.35:
         pipeline.fatal(
-            f"search over the empty network scores only {neutral_score:.0%} against a player moving at "
-            "random. Even with no knowledge the search should find the wins it can see, so this points "
-            "at the encoding or the export rather than at the network.",
+            f"search over the empty network *loses* to a player moving at random (W{wins} L{losses} "
+            f"D{draws}). Avoiding an immediate loss is the one thing search can do with no knowledge at "
+            "all, so this points at the encoding or the export rather than at the network.",
             force,
         )
-    report.note(f"generation 0 (no knowledge, search only) beats a random player {neutral_score:.0%}")
+    if neutral_score < 0.5:
+        report.warn(
+            f"generation 0 scored {neutral_score:.0%} against a random player (W{wins} L{losses} "
+            f"D{draws}). Not fatal, but it is the wrong side of even - worth a look if the run goes "
+            "nowhere."
+        )
+    report.note(f"generation 0 (no knowledge, search only) vs random: W{wins} L{losses} D{draws}")
+    state.gen0_checked = True
+    state.save()
     return model
 
 
@@ -299,7 +320,7 @@ def main() -> int:
     say("=" * 78)
 
     check_environment(report, data, args.force)
-    make_random_network(args.board, data, report, args.force)
+    make_random_network(args.board, data, state, report, args.force)
 
     # Measured once and reused: which minimax depth is the real bar on this board. Purely a yardstick -
     # see --benchmark-every. Nothing the minimax says is ever trained on.
