@@ -61,6 +61,11 @@ so that board likely had another generation or two of headroom.
 Depth 4 beating depth 5 has now replicated on all three boards tried, which makes it a property of the
 hand-written engine rather than a quirk of one board.
 
+**Training from nothing reaches the same place.** A tabula-rasa run on 6x4 - no minimax, no harvest,
+32 generations over 13.3 hours - scores **100% (40-0)** against depth-4 minimax at 3200 simulations,
+and is a dead heat with the bootstrapped champion head to head: **47.5%, W10 L12 D18** over 40 games.
+Imitating the hand-written engine bought a faster start, not a better ceiling. See `zero.py` below.
+
 ## Setup
 
 ```bash
@@ -175,11 +180,33 @@ unlearn. Gradients still flow through a zeroed layer, so nothing is frozen by it
 The shape of the network comes from `sbt game/run nn-descriptor <board>`, which is new: a zero run has
 no harvest manifest to read it off, and Scala stays the only place that knows how a position is encoded.
 
+## What came out of the first run
+
+32 generations, 64,000 self-play games, 2.6M positions, 13.3 hours on one laptop.
+
+| gen | 1 | 4 | 8 | 12 | 16 | 20 | 24 | 28 | 32 |
+|---|---|---|---|---|---|---|---|---|---|
+| vs depth 4, 800 sims | 0% | 0% | 10% | 57.5% | 77.5% | 87.5% | 92.5% | 90% | **95%** |
+
+At 3200 simulations over the full 40-game battery the champion scores **100% (W40 L0 D0)**, and
+against the bootstrapped champion it is level: **47.5%, W10 L12 D18**.
+
+**Takeoff is between generations 8 and 12** - 10% to 57.5% in four generations. Everything before that
+looks like nothing is happening, and this is the thing to be ready for: generation 1 scored **86.3%
+against its own parent** on the same run where it scored 0.0% against the minimax. The arena is the
+live signal.
+
+It converged like the bootstrapped loop did: 31 of 32 generations promoted, but late arena margins
+settled to 55-59% and the self-play draw rate climbed from 33% at generation 21 to 55% at generation
+32, firing the draw warning twelve generations running. That says the network size is the binding
+constraint, not the number of generations - the same conclusion the bootstrapped run reached from the
+other direction.
+
 ## Reading a run
 
 The minimax appears exactly once, as a **yardstick** - `--benchmark-every` scores the champion against
 it. Nothing it says ever reaches the network, which is what keeps the run honest; AlphaGo Zero was
-scored against AlphaGo Lee the same way. Expect **0.0% for the first several generations**: at 800
+scored against AlphaGo Lee the same way. Expect **0.0% through about generation 8**: at 800
 simulations a still-random network loses 20-0 in about 19 turns, and that number stays at zero long
 after the arena shows real progress. The arena is the live signal; the benchmark is the milestone.
 
