@@ -298,19 +298,24 @@ import scala.util.Random
                  |  "actionFingerprint": ${be.doeraene.mad.ai.nn.ActionIndex.orderingFingerprint}
                  |}""".stripMargin)
 
-    case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed, board) =>
-      val boundaries   = GameConfig.boardFromAlias(board)
-      val games        = benchmark.Benchmark.battery(openings, seed, boundaries = boundaries)
-      val searchConf   = mcts.SearchConfig(simulations = simulations)
-      val challenger   = evaluatorFor(challengerPath, boundaries)
-      val champion     = evaluatorFor(championPath, boundaries)
+    case GameConfig.Arena(challengerPath, championPath, simulations, openings, seed, board, championSims) =>
+      val boundaries     = GameConfig.boardFromAlias(board)
+      val games          = benchmark.Benchmark.battery(openings, seed, boundaries = boundaries)
+      val championBudget = championSims.getOrElse(simulations)
+      val searchConf     = mcts.SearchConfig(simulations = simulations)
+      val championConf   = mcts.SearchConfig(simulations = championBudget)
+      val challenger     = evaluatorFor(challengerPath, boundaries)
+      val champion       = evaluatorFor(championPath, boundaries)
 
       try
-        println(s"Arena on $board: $challengerPath vs $championPath at $simulations sims, ${games.size} games")
+        val budgets =
+          if championBudget == simulations then s"$simulations sims"
+          else s"$simulations vs $championBudget sims"
+        println(s"Arena on $board: $challengerPath vs $championPath at $budgets, ${games.size} games")
         val (report, time) = Player.timeIt(
           benchmark.Benchmark.run(
             mcts.Mcts.player(challenger, searchConf, "challenger"),
-            mcts.Mcts.player(champion, searchConf, "champion"),
+            mcts.Mcts.player(champion, championConf, "champion"),
             games,
             (done, total) => if done % 10 == 0 || done == total then println(s"  $done/$total games played")
           )

@@ -135,14 +135,23 @@ object GameConfig:
       board: String
   ) extends GameConfig
 
-  /** Play two networks against each other, to decide whether a newly trained one is actually better. */
+  /** Play two networks against each other, to decide whether a newly trained one is actually better.
+    *
+    * @param championSimulations
+    *   search budget for `champion`, when it should differ from the challenger's. Giving the two sides
+    *   different budgets is how to ask what another thousand simulations is actually worth - the same
+    *   question [[MadBenchmark.opponentDepth]] answers for minimax depth. Pointing both arguments at the
+    *   same model turns it into a pure measurement of search: identical judgement, different thinking
+    *   time, so whatever separates them is the search and nothing else.
+    */
   case class Arena(
       challenger: String,
       champion: String,
       simulations: Int,
       openings: Int,
       seed: Long,
-      board: String
+      board: String,
+      championSimulations: Option[Int] = None
   ) extends GameConfig
 
   /** Report the network's input shape and action ordering for a board, as JSON on stdout.
@@ -396,8 +405,11 @@ object GameConfig:
     if args.length < 2 then {
       println("""
           |Usage: arena <challenger.onnx> <champion.onnx|uninformed> [simulations] [openings] [seed]
+          |             [board] [champion-simulations]
           |Plays two networks against each other over the usual battery, both colours, to decide whether
           |a newly trained network is actually an improvement.
+          |champion-simulations gives the second side a different search budget; passing the same model
+          |twice then measures what the extra simulations are worth on their own.
           |Example: run arena ./data/nn/gen1/model.onnx ./data/nn/model/model.onnx 400 20
           |""".stripMargin)
       throw IllegalArgumentException("arena requires at least 2 arguments")
@@ -409,7 +421,8 @@ object GameConfig:
       simulations = Try(args(2).toInt).getOrElse(400),
       openings = Try(args(3).toInt).getOrElse(20),
       seed = Try(args(4).toLong).getOrElse(42L),
-      board = Try(args(5)).getOrElse("6x4")
+      board = Try(args(5)).getOrElse("6x4"),
+      championSimulations = Try(args(6).toInt).toOption
     )
   }
 
