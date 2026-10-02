@@ -3,7 +3,7 @@ package be.doeraene.components
 import be.doeraene.components.*
 import be.doeraene.components.gamecomponents.PlayerFrame
 import be.doeraene.mad.game.*
-import be.doeraene.models.{PlayerName, WithTime, GameHistory as GameHistoryModel}
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
 import be.doeraene.webcomponents.ui5.{Bar, Button, Dialog}
 import com.raquo.laminar.api.L.*
 
@@ -112,7 +112,11 @@ object GameView {
         div(
           paddingBottom := "10px",
           paddingTop    := "5px",
-          downloadGameHistoryComponent(history, saveGameErrorBus.writer)
+          downloadGameHistoryComponent(
+            history,
+            AIGameOption(Some(playerTeam), difficulty, initialGameState.withInitialSpecialRule),
+            saveGameErrorBus.writer
+          )
         )
       ),
       br(),

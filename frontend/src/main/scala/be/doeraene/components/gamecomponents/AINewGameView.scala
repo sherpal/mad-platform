@@ -82,6 +82,11 @@ object AINewGameView {
         Select(
           marginLeft := "20px",
           _.option(
+            "0 (learn the rules)",
+            Select.option.value := "0",
+            Select.option.selected <-- difficultyLevelVar.signal.map(_ == 0)
+          ),
+          _.option(
             "1 (easy)",
             Select.option.value     := "1",
             Select.option.selected <-- difficultyLevelVar.signal.map(_ == 1)
@@ -102,6 +107,15 @@ object AINewGameView {
                 "4 (very hard)",
                 Select.option.value     := "4",
                 Select.option.selected <-- difficultyLevelVar.signal.map(_ == 4)
+              )
+            )
+          ),
+          child.maybe <-- chosenGameType.signal.map(gameType =>
+            Option.when(NeuralModels.isTrained(gameType))(
+              Select.option(
+                "5 (insane)",
+                Select.option.value     := "5",
+                Select.option.selected <-- difficultyLevelVar.signal.map(_ == 5)
               )
             )
           ),

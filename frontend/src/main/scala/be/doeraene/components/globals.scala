@@ -7,7 +7,7 @@ import be.doeraene.facades.jszip.JSZip
 import be.doeraene.frontendutils.{PrimaryButton, SecondaryButton}
 import be.doeraene.globals.madRulesPath
 import be.doeraene.mad.game.*
-import be.doeraene.models.{AIGameOption, WithTime, GameHistory as GameHistoryModel}
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
 import be.doeraene.utils.communication.MadTranslators.given
 import be.doeraene.webcomponents.ui5.configkeys.IconName
 import com.raquo.laminar.api.L.*
@@ -88,7 +88,9 @@ given Printer[AIGameOption] = (option: AIGameOption) => dom.window.btoa(option.a
 
 val gameOptionsParam = param[AIGameOption]("game-options")
 
-def extractGameHistory(files: jszip.Files)(using ExecutionContext): Future[GameHistoryModel] = {
+def extractGameHistory(
+    files: jszip.Files
+)(using ExecutionContext): Future[(history: GameHistoryModel, options: AIGameOption)] = {
   val initialGameStateFile = files.files.values
     .filter(_.name.startsWith("game-state"))
     .minBy(_.name.drop("game-state-".length).dropRight(4).toInt)
@@ -106,15 +108,29 @@ def extractGameHistory(files: jszip.Files)(using ExecutionContext): Future[GameH
         }
     }
 
+  def readGameOptions =
+    if files.files.toMap.contains("options.json") then
+      for {
+        file    <- Future.successful(files.file("options.json"))
+        text    <- file.text
+        options <- Future.fromTry(io.circe.parser.decode[AIGameOption](text).toTry)
+      } yield options
+    else Future.successful(AIGameOption.default)
+
   for {
     initialGameStateEncoded <- initialGameStateFile.text
     initialGameState        <- Future.fromTry(CustomGameStateParser.parse(initialGameStateEncoded).toTry)
     actionsText             <- files.file("actions.json").text
     actions                 <- Future.fromTry(decodeActions(actionsText))
-  } yield GameHistoryModel(initialGameState, actions)
+    options                 <- readGameOptions
+  } yield (history = GameHistoryModel(initialGameState, actions), options = options)
 }
 
-def downloadGameHistoryComponent(gameHistory: GameHistoryModel, errorObserver: Observer[Throwable])(using
+def downloadGameHistoryComponent(
+    gameHistory: GameHistoryModel,
+    gameOptions: AIGameOption,
+    errorObserver: Observer[Throwable]
+)(using
     ExecutionContext
 ) = PrimaryButton(
   Val("Save game"),
@@ -130,6 +146,10 @@ def downloadGameHistoryComponent(gameHistory: GameHistoryModel, errorObserver: O
     zip.file(
       "actions.json",
       gameHistory.actions.asJson.spaces2
+    )
+    zip.file(
+      "options.json",
+      gameOptions.asJson.spaces2
     )
     zip.generate[dom.Blob].onComplete {
       case Failure(exception) =>

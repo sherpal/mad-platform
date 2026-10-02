@@ -3,7 +3,7 @@ package be.doeraene.components.gamecomponents
 import be.doeraene.communication.AIApi.*
 import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
-import be.doeraene.models.{AIGameOption, PlayerName, WithTime, GameHistory as GameHistoryModel}
+import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
 import be.doeraene.workers.NeuralModels
 import com.raquo.laminar.api.L.*
 
@@ -41,7 +41,10 @@ object AIGameView:
         aiChoosesNextGameActionBus.events
           .flatMapSwitch { gs =>
             EventStream.fromFuture(
-              if gameOption.difficultyLevel < 4 || !neuralPlaysThisBoard then {
+              if gameOption.difficultyLevel == 0 then {
+                Future.successful(Random.shuffle(gs.allValidActions).head)
+              } else if gameOption.difficultyLevel < 4 || !neuralPlaysThisBoard
+              then {
                 askNextAction(
                   gameOption.turnAhead,
                   aFunction(gs),
@@ -49,7 +52,7 @@ object AIGameView:
                   progress => aiProgress.update(_ => progress)
                 )
               } else {
-                val sims = 800
+                val sims = if gameOption.difficultyLevel == 4 then 800 else 4000
                 /* The search reports nothing until it is finished, so there is no honest progress to
                  * show - a bar creeping along would be made up. Jump to full when the move arrives. */
                 aiProgress.set(0)

@@ -61,27 +61,29 @@ object AILoadGameView {
       case (colour, Some(file)) => (colour = colour, file = file)
     }
 
-    val responses: EventStream[(Either[Throwable, GameHistoryModel], Option[Team], Boolean)] = submitEvents
-      .flatMapSwitch(data =>
-        EventStream
-          .fromFuture(
-            JSZip
-              .load(data.file)
-              .flatMap(be.doeraene.components.extractGameHistory)
-              .map[Either[Throwable, GameHistoryModel]](Right.apply)
-              .recover { case throwable: Throwable =>
-                Left(throwable)
-              }
-          )
-          .map(gameHistory => (gameHistory, data.colour))
-      )
-      .withCurrentValueOf(goToAdvancedSettings.signal)
+    val responses
+        : EventStream[(Either[Throwable, (history: GameHistoryModel, options: AIGameOption)], Option[Team], Boolean)] =
+      submitEvents
+        .flatMapSwitch(data =>
+          EventStream
+            .fromFuture(
+              JSZip
+                .load(data.file)
+                .flatMap(be.doeraene.components.extractGameHistory)
+                .map[Either[Throwable, (history: GameHistoryModel, options: AIGameOption)]](Right.apply)
+                .recover { case throwable: Throwable =>
+                  Left(throwable)
+                }
+            )
+            .map(gameHistory => (gameHistory, data.colour))
+        )
+        .withCurrentValueOf(goToAdvancedSettings.signal)
 
     val advancedSettingsResponses: EventStream[(GameHistoryModel, Option[Team])] =
-      responses.collect { case (Right(gameHistory), maybeTeam, true) => (gameHistory, maybeTeam) }
+      responses.collect { case (Right(gameHistory), maybeTeam, true) => (gameHistory.history, maybeTeam) }
 
     val noAdvancedSettingsResponses: EventStream[(GameHistoryModel, Option[Team])] =
-      responses.collect { case (Right(gameHistory), maybeTeam, false) => (gameHistory, maybeTeam) }
+      responses.collect { case (Right(gameHistory), maybeTeam, false) => (gameHistory.history, maybeTeam) }
 
     val loadErrorsEvents: EventStream[Throwable] = responses.map(_._1).collect { case Left(throwable) => throwable }
     val closeErrorDialogBus                      = new EventBus[Unit]
