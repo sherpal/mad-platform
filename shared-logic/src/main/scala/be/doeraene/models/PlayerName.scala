@@ -1,5 +1,6 @@
 package be.doeraene.models
 
+import be.doeraene.models.AIGameOption.Difficulty
 import io.circe.Codec
 
 sealed trait PlayerName:
@@ -9,5 +10,5 @@ object PlayerName:
 
   case class HumanPlayerName(name: String) extends PlayerName derives Codec:
     def display: String = name
-  object AIPlayerName extends PlayerName:
-    def display: String = "Blue Madness"
+  case class AIPlayerName(difficulty: Difficulty) extends PlayerName:
+    def display: String = s"Blue Madness (${difficulty.name})"

@@ -3,6 +3,7 @@ package be.doeraene.components
 import be.doeraene.components.*
 import be.doeraene.components.gamecomponents.PlayerFrame
 import be.doeraene.mad.game.*
+import be.doeraene.models.AIGameOption.Difficulty
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
 import be.doeraene.webcomponents.ui5.{Bar, Button, Dialog}
 import com.raquo.laminar.api.L.*
@@ -19,15 +20,15 @@ object GameView {
       maybeAICompletion: Option[Signal[Int]],
       playerName: PlayerName,
       opponentPlayerName: PlayerName,
-      difficulty: Int,
+      difficulty: Difficulty,
       playerThinkingTimes: Signal[WithTime.time.Time],
       opponentThinkingTimes: Signal[WithTime.time.Time],
       modifiers: Modifier[HtmlElement]*
   ): HtmlElement = {
 
     val isAgainstAI: Boolean = opponentPlayerName match {
-      case PlayerName.AIPlayerName => true
-      case _                       => false
+      case _: PlayerName.AIPlayerName    => true
+      case _: PlayerName.HumanPlayerName => false
     }
 
     val displayGameActionBus: EventBus[Option[GameAction]] = new EventBus

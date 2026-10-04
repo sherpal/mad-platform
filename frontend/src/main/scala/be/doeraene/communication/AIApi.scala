@@ -63,16 +63,28 @@ object AIApi:
     *   thousand is stronger and noticeably slower in a browser.
     */
   def askNeuralAction(currentGameState: GameState, simulations: Int): Future[GameAction] =
-    println(s"Asking the neural worker for a move ($simulations simulations)...")
-    val started = new js.Date
-
-    PersistentWorker.compute(NeuralMoveRequest(currentGameState, simulations)).map { move =>
-      val elapsed = (new js.Date).getTime() - started.getTime()
-      println(
-        f"Neural move ${move.gameAction.prettyPrint(currentGameState)}, " +
-          f"position worth ${move.value}%.2f to the mover (${elapsed}%.0f ms)"
+    if currentGameState.turnNumber <= 2 then
+      Future.successful(
+        Random
+          .shuffle(currentGameState.allValidActions.filter {
+            case _: GameAction.PieceShiftingAction => true
+            case _: GameAction.Identity            => true
+            case _                                 => false
+          })
+          .head
       )
-      move.gameAction
+    else {
+      println(s"Asking the neural worker for a move ($simulations simulations)...")
+      val started = new js.Date
+
+      PersistentWorker.compute(NeuralMoveRequest(currentGameState, simulations)).map { move =>
+        val elapsed = (new js.Date).getTime() - started.getTime()
+        println(
+          f"Neural move ${move.gameAction.prettyPrint(currentGameState)}, " +
+            f"position worth ${move.value}%.2f to the mover (${elapsed}%.0f ms)"
+        )
+        move.gameAction
+      }
     }
 
   def askNextActionViaServer(turnAhead: Int, aValue: Double, currentGameState: GameState): Future[GameAction] =

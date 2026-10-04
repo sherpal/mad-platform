@@ -3,6 +3,7 @@ package be.doeraene.components
 import be.doeraene.components.RouteDefinitions.*
 import be.doeraene.frontendutils.SecondaryButton
 import be.doeraene.mad.game.{GameAction, GameBoundaries, GameState, Team}
+import be.doeraene.models.AIGameOption.Difficulty
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, WithTime}
 import be.doeraene.webcomponents.ui5.*
 import be.doeraene.webcomponents.ui5.configkeys.IconName
@@ -26,7 +27,7 @@ object GameHistory:
       initialGameState: GameState,
       actionsSignal: Signal[List[WithTime[GameAction]]],
       team: Team,
-      difficulty: Int
+      difficulty: Difficulty
   ): HtmlElement = div(
     marginBottom := "30px",
     Title.h3("Game History"),
@@ -103,7 +104,7 @@ object GameHistory:
       statesAndActions: Signal[(GameState, GameAction)],
       fullHistorySignal: Signal[GameHistoryModel],
       team: Team,
-      difficulty: Int
+      difficulty: Difficulty
   ) = detailsTag(
     marginBottom := "5px",
     summaryTag(

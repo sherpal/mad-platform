@@ -3,8 +3,8 @@ package be.doeraene.components.gamecomponents
 import be.doeraene.communication.AIApi.*
 import be.doeraene.components.GameView
 import be.doeraene.mad.game.*
+import be.doeraene.models.AIGameOption.Difficulty.Type
 import be.doeraene.models.{AIGameOption, GameHistory as GameHistoryModel, PlayerName, WithTime}
-import be.doeraene.workers.NeuralModels
 import com.raquo.laminar.api.L.*
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,13 +18,6 @@ object AIGameView:
     val playerTeam =
       gameOption.maybePlayerTeam.getOrElse(if scala.util.Random.nextBoolean() then Team.Red else Team.Blue)
     val initialGameState = gameHistory.initialGameState
-
-    /* Each board needs its own network - the input is 19 x rows x cols and the heads end in a Linear
-     * over rows * cols cells, so the board is baked into the weights - and only some boards have one
-     * trained. Where none exists the minimax is not the fallback, it is the only player there is; at
-     * this difficulty it searches to depth 4, its own strongest setting, so nothing is lost but the
-     * network. NeuralModels is the single list, shared with the worker that loads the files. */
-    val neuralPlaysThisBoard = NeuralModels.isTrained(initialGameState.gameType)
 
     val aFunction = (gameState: GameState) => gameState.pieces.size * (22 - gameState.pieces.size) / 150.0
 
@@ -41,32 +34,21 @@ object AIGameView:
         aiChoosesNextGameActionBus.events
           .flatMapSwitch { gs =>
             EventStream.fromFuture(
-              if gameOption.difficultyLevel == 0 then {
-                Future.successful(Random.shuffle(gs.allValidActions).head)
-              } else if gameOption.difficultyLevel < 4 || !neuralPlaysThisBoard
-              then {
-                askNextAction(
-                  gameOption.turnAhead,
-                  aFunction(gs),
-                  gs,
-                  progress => aiProgress.update(_ => progress)
-                )
-              } else {
-                val sims = if gameOption.difficultyLevel == 4 then 800 else 4000
-                /* The search reports nothing until it is finished, so there is no honest progress to
-                 * show - a bar creeping along would be made up. Jump to full when the move arrives. */
-                aiProgress.set(0)
-                (if gs.turnNumber <= 2 then
-                   Future.successful(
-                     Random
-                       .shuffle(gs.allValidActions.filter {
-                         case _: GameAction.PieceShiftingAction => true
-                         case _: GameAction.Identity            => true
-                         case _                                 => false
-                       })
-                       .head
-                   )
-                 else askNeuralAction(gs, sims)).andThen { case _ => aiProgress.set(100) }
+              gameOption.difficultyLevel.tpe match {
+                case Type.Random => Future.successful(Random.shuffle(gs.allValidActions).head)
+                case Type.Minimax =>
+                  askNextAction(
+                    gameOption.turnAhead,
+                    aFunction(gs),
+                    gs,
+                    progress => aiProgress.update(_ => progress)
+                  )
+                case Type.MCTS =>
+                  val sims = gameOption.sims
+                  /* The search reports nothing until it is finished, so there is no honest progress to
+                   * show - a bar creeping along would be made up. Jump to full when the move arrives. */
+                  aiProgress.set(0)
+                  askNeuralAction(gs, sims).andThen { case _ => aiProgress.set(100) }
               }
             )
           }
@@ -91,7 +73,7 @@ object AIGameView:
         initialGameState,
         Some(aiProgress.signal),
         playerName,
-        PlayerName.AIPlayerName,
+        PlayerName.AIPlayerName(gameOption.difficultyLevel),
         difficulty = gameOption.difficultyLevel,
         playerThinkingTimes,
         aiThinkingTimes

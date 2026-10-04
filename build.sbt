@@ -90,7 +90,7 @@ lazy val frontend = project
       baseDirectory.value / "target" / "production",
     libraryDependencies ++= List(
       "com.raquo"   %% "laminar"            % "17.0.0",
-      "be.doeraene" %% "web-components-ui5" % "1.24.0"
+      "be.doeraene" %% "web-components-ui5" % "2.12.2"
     ),
     commonSettings
   )
