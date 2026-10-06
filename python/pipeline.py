@@ -429,6 +429,11 @@ def main() -> int:
     parser.add_argument("--benchmark-openings", type=int, default=20,
                         help="openings per benchmark; each is played with both colours, so twice this "
                              "many games. 20 is the noise floor - fewer is faster and less trustworthy.")
+    parser.add_argument("--benchmark-depth", type=int, default=None,
+                        help="skip measuring which minimax depth is strongest and use this one. Worth "
+                             "passing on a resume: the comparison costs 20-35 minutes because depth 5 is "
+                             "slow, and the answer is a fixed property of the board - it is 4 on all four "
+                             "boards tried.")
     parser.add_argument("--restart", action="store_true", help="delete previous work for this board first")
     parser.add_argument("--force", action="store_true",
                         help="carry on past checks that would otherwise stop the run")
@@ -469,7 +474,11 @@ def main() -> int:
     check_fingerprints(bootstrap, model, args.force)
 
     uct_score = check_sanity(args.board, model, report, args.force)
-    depth = choose_benchmark_depth(args.board, report)
+    if args.benchmark_depth is not None:
+        depth = args.benchmark_depth
+        report.note(f"benchmarking against depth {depth}, given rather than measured")
+    else:
+        depth = choose_benchmark_depth(args.board, report)
 
     heading(f"bootstrap model against the minimax at depth {depth}")
     score = benchmark(args.board, model, depth, 1600, args.benchmark_openings // 2, "the bootstrap model")
