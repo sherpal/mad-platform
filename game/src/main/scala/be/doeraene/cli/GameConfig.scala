@@ -43,7 +43,8 @@ object GameConfig:
       openings: Int,
       seed: Long,
       skip: Int,
-      opponentDepth: Option[Int] = None
+      opponentDepth: Option[Int] = None,
+      board: String = "6x4"
   ) extends GameConfig
 
   /** @param openings
@@ -232,7 +233,9 @@ object GameConfig:
           |Plays the first config against the second over a battery of distinct positioning-turn openings, each
           |played with both colour assignments, and reports the first config's aggregate score.
           |openings: how many of the 81 openings to use (default 20, so 40 games)
+          |board: 6x4 (default), 5x5, 4x6 or aztec. Note this is the 8th argument, after opponent-depth.
           |Example: run ai-benchmark 3 '{"Tactical":{}}' '{"JPaulTheory":{"aValue":0.05}}' 20
+          |Random play on a board: run ai-benchmark 1 '{"Random":{}}' '{"Random":{}}' 81 42 0 1 aztec
           |""".stripMargin)
       throw IllegalArgumentException("ai-benchmark requires at least 3 arguments")
     }
@@ -244,7 +247,8 @@ object GameConfig:
       openings = Try(args(3).toInt).getOrElse(20),
       seed = Try(args(4).toLong).getOrElse(42L),
       skip = Try(args(5).toInt).getOrElse(0),
-      opponentDepth = Try(args(6).toInt).toOption
+      opponentDepth = Try(args(6).toInt).toOption,
+      board = Try(args(7)).getOrElse("6x4")
     )
   }
 

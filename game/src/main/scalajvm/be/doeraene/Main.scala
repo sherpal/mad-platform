@@ -75,12 +75,13 @@ import scala.util.Random
         case None       => "It's a tie!"
       })
 
-    case GameConfig.MadBenchmark(minimaxDepth, config1, config2, openings, seed, skip, opponentDepth) =>
-      val games          = benchmark.Benchmark.battery(openings, seed, skip)
+    case GameConfig.MadBenchmark(minimaxDepth, config1, config2, openings, seed, skip, opponentDepth, board) =>
+      val boundaries      = GameConfig.boardFromAlias(board)
+      val games           = benchmark.Benchmark.battery(openings, seed, skip, boundaries)
       val depthOfOpponent = opponentDepth.getOrElse(minimaxDepth)
       println(
         s"Benchmark: $config1 at depth $minimaxDepth vs $config2 at depth $depthOfOpponent " +
-          s"over ${games.size} games"
+          s"on $board over ${games.size} games"
       )
 
       val (report, time) = Player.timeIt(
