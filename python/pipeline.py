@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -43,7 +44,20 @@ BOARDS = ["6x4", "5x5", "4x6", "aztec"]
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-PYTHON = HERE / ".venv" / "bin" / "python"
+def _venv_python() -> Path:
+    """The venv's interpreter, wherever this platform put it.
+
+    A venv is `bin/python` on Unix and `Scripts/python.exe` on Windows, and hard-coding either one makes
+    the script refuse to start on the other with a message about a missing venv that is plainly there.
+    Probed rather than branched on os.name, so a Unix-layout venv under Git Bash or WSL also works.
+    """
+    for candidate in (HERE / ".venv" / "bin" / "python", HERE / ".venv" / "Scripts" / "python.exe"):
+        if candidate.exists():
+            return candidate
+    return HERE / ".venv" / "bin" / "python"  # nothing found; name the usual one in the error
+
+
+PYTHON = _venv_python()
 
 
 # --------------------------------------------------------------------------------------------------
@@ -70,6 +84,16 @@ class Report:
     def note(self, message: str) -> None:
         self.notes.append(message)
         say(f"note     {message}")
+
+
+# The same problem in the other direction: these scripts print what the children said, and a Windows
+# console encodes with a code page that has no tick mark in it. Without this, `print` raises
+# UnicodeEncodeError part-way through a run - which looks like a crash in the training and is really
+# just a character. The console's own encoding is kept, so ordinary output is unaffected; only what it
+# genuinely cannot represent degrades to a placeholder.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="replace")
 
 
 def say(message: str = "") -> None:
@@ -116,7 +140,23 @@ def run(command: list[str], cwd: Path, what: str) -> str:
     say(f"$ {' '.join(str(part) for part in command)}")
     lines: list[str] = []
     process = subprocess.Popen(
-        command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        # Decoded as UTF-8 rather than by the machine's locale, and never fatally. The replacement is
+        # deliberate: a character we cannot read is a cosmetic loss in a log, and killing a twenty-hour
+        # run over one of them is not a trade worth making.
+        encoding="utf-8",
+        errors="replace",
+        # And the matching half, which is the one that actually bites. A Python child writing to a pipe
+        # picks its encoding from the locale, so on Windows torch's exporter raises UnicodeEncodeError
+        # on its own tick mark and dies before the parent sees a byte - no amount of care on this side
+        # helps, because the failure is over there. Telling the children to use UTF-8 is what fixes it,
+        # and it is also what makes the UTF-8 decode above true rather than hopeful.
+        env=child_environment(),
     )
     assert process.stdout is not None
     for line in process.stdout:
@@ -129,6 +169,27 @@ def run(command: list[str], cwd: Path, what: str) -> str:
     return output
 
 
+def child_environment() -> dict[str, str]:
+    """This process's environment, with the children told to speak UTF-8.
+
+    PYTHONIOENCODING fixes the streams; PYTHONUTF8 puts the interpreter in UTF-8 mode so anything else
+    reading or writing a file agrees. Harmless for the JVM, which ignores both.
+    """
+    return {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+
+
+def sbt_launcher() -> str:
+    """Whatever sbt is actually called on this platform.
+
+    On Windows sbt is `sbt.bat`, and a bare "sbt" does not find it: Popen goes through CreateProcess,
+    which - unlike a shell - does not try the PATHEXT extensions. `shutil.which` does try them and hands
+    back the real filename, which also covers `sbt.cmd` and any wrapper further along the PATH, so this
+    needs no branch on the operating system. Falling back to the bare name keeps the failure as a clear
+    "sbt is not on the PATH" from check_environment rather than a None reaching Popen.
+    """
+    return shutil.which("sbt") or "sbt"
+
+
 def sbt(task: str, what: str) -> str:
     """Runs one sbt task from the repository root.
 
@@ -136,7 +197,7 @@ def sbt(task: str, what: str) -> str:
     quotes passed through reach circe verbatim and fail to parse - which looks like a config error and
     is really a shell one.
     """
-    return run(["sbt", "-batch", task], cwd=ROOT, what=what)
+    return run([sbt_launcher(), "-batch", task], cwd=ROOT, what=what)
 
 
 def python_step(script: str, *args: str, what: str) -> str:
