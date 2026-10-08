@@ -17,9 +17,10 @@ object NeuralModels:
 
   /** Board to the base name of its model, under `nn/` next to the site. */
   private val fileNames: Map[GameType, String] = Map(
-    GameBoundaries._6by4 -> "mad-6x4",
-    GameBoundaries._5by5 -> "mad-5x5",
-    GameBoundaries._4by6 -> "mad-4x6"
+    GameBoundaries._6by4        -> "mad-6x4",
+    GameBoundaries._5by5        -> "mad-5x5",
+    GameBoundaries._4by6        -> "mad-4x6",
+    GameBoundaries.aztecDiamond -> "mad-aztec"
   )
 
   /** Whether a network exists for this board. 4x6 and the Aztec Diamond have none yet: nothing is wrong with them, they
