@@ -69,9 +69,10 @@ end WorkerAPI
   */
 object PersistentWorker:
 
-  private var worker: Option[Worker]                 = None
-  private var ready: Option[Future[Worker]]          = None
+  private var worker: Option[Worker]                    = None
+  private var ready: Option[Future[Worker]]             = None
   private var inFlight: Option[Promise[WorkerProtocol]] = None
+  private var progressHandler: Int => Unit              = _ => ()
 
   /** Discards the worker, so the next request builds a fresh one. Used when it has failed and cannot be
     * trusted to still be in a state where it will answer.
@@ -112,9 +113,14 @@ object PersistentWorker:
           message <- decode[WorkerProtocol](stringData).swap.map(new ProtocolException.DecodingError(_)).swap
         } yield message
 
-        val waiting = inFlight
-        inFlight = None
-        waiting.foreach(_.complete(decoded.toTry))
+        decoded match {
+          case Right(WorkerProtocol.NeuralProgress(percent)) =>
+            progressHandler(percent)
+          case _ =>
+            val waiting = inFlight
+            inFlight = None
+            waiting.foreach(_.complete(decoded.toTry))
+        }
 
     worker = Some(created)
     val started = promise.future
@@ -122,11 +128,12 @@ object PersistentWorker:
     started
   }
 
-  def compute[T <: WorkerProtocol](message: T)(using ClassTag[message.Response]): Future[message.Response] =
+  def compute[T <: WorkerProtocol](message: T, onProgress: Int => Unit = _ => ())(using ClassTag[message.Response]): Future[message.Response] =
     if inFlight.isDefined then
       Future.failed(new IllegalStateException("the persistent worker is already working on a request"))
     else
       ensureStarted().flatMap { started =>
+        progressHandler = onProgress
         val promise = Promise[WorkerProtocol]()
         inFlight = Some(promise)
         started.postMessage((message: WorkerProtocol).asJson.noSpaces)

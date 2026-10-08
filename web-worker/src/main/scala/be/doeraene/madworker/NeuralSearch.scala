@@ -58,12 +58,17 @@ object NeuralSearch:
   /** Picks a move for `state`, and returns it with what the search thought the position was worth.
     *
     * The model is chosen by board, because each board has its own - see [[NeuralModels]].
+    *
+    * @param onProgress
+    *   called with 0–100 each time the completed-simulation percentage changes. Best-effort: may skip values, and the
+    *   final 100 is guaranteed by the caller's `.andThen`.
     */
   def bestAction(
       state: GameState,
       simulations: Int,
       siteRoot: String,
-      assetBase: String
+      assetBase: String,
+      onProgress: Int => Unit = _ => ()
   ): Future[(GameAction, Double)] =
     NeuralModels.modelPath(state.gameType) match
       case None =>
@@ -86,15 +91,17 @@ object NeuralSearch:
            * them and no network was needed - and that advances the search, so the right response is to
            * go round again. It cannot loop forever: an empty batch means the simulation budget was
            * consumed, so the next check is done. */
-          def step(): Future[Unit] =
+          def step(lastPercent: Int = 0): Future[Unit] =
             if tree.isDone then Future.unit
             else
               val batch = tree.selectBatch()
-              if batch.isEmpty then step()
+              if batch.isEmpty then step(lastPercent)
               else
                 evaluate(ready, state.gameBoundaries, batch).flatMap { evaluations =>
                   tree.submit(evaluations)
-                  step()
+                  val percent = tree.completedSimulations * 100 / simulations
+                  if percent > lastPercent then onProgress(percent)
+                  step(percent.max(lastPercent))
                 }
 
           step().map(_ => (tree.bestAction, tree.rootValue))

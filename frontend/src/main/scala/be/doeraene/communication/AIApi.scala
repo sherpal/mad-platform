@@ -62,7 +62,11 @@ object AIApi:
     *   how many leaves the search visits. Strength against how long the move takes; a few hundred is quick, a few
     *   thousand is stronger and noticeably slower in a browser.
     */
-  def askNeuralAction(currentGameState: GameState, simulations: Int): Future[GameAction] =
+  def askNeuralAction(
+      currentGameState: GameState,
+      simulations: Int,
+      onProgress: Int => Unit = _ => ()
+  ): Future[GameAction] =
     if currentGameState.turnNumber <= 2 then
       Future.successful(
         Random
@@ -77,7 +81,7 @@ object AIApi:
       println(s"Asking the neural worker for a move ($simulations simulations)...")
       val started = new js.Date
 
-      PersistentWorker.compute(NeuralMoveRequest(currentGameState, simulations)).map { move =>
+      PersistentWorker.compute(NeuralMoveRequest(currentGameState, simulations), onProgress).map { move =>
         val elapsed = (new js.Date).getTime() - started.getTime()
         println(
           f"Neural move ${move.gameAction.prettyPrint(currentGameState)}, " +

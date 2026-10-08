@@ -45,10 +45,9 @@ object AIGameView:
                   )
                 case Type.MCTS =>
                   val sims = gameOption.sims
-                  /* The search reports nothing until it is finished, so there is no honest progress to
-                   * show - a bar creeping along would be made up. Jump to full when the move arrives. */
                   aiProgress.set(0)
-                  askNeuralAction(gs, sims).andThen { case _ => aiProgress.set(100) }
+                  askNeuralAction(gs, sims, percent => aiProgress.set(percent))
+                    .andThen { case _ => aiProgress.set(100) }
               }
             )
           }

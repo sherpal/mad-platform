@@ -69,12 +69,21 @@ object WorkerProtocol:
   case class NeuralFailure(reason: String) extends WorkerProtocol:
     type Response = Nothing
 
+  /** Sent by the worker during a [[NeuralMoveRequest]] to report search progress (0–100).
+    *
+    * Not a reply to any request — the caller must handle these out-of-band and not treat them as the
+    * final [[NeuralMove]].
+    */
+  case class NeuralProgress(percent: Int) extends WorkerProtocol:
+    type Response = Nothing
+
   given Encoder[WorkerProtocol] = Encoder.instance {
     case element: CurrentGameStateWithSelectedAction => element.asJson
     case element: GameActionWithScore                => element.asJson
     case element: NeuralMoveRequest                  => element.asJson
     case element: NeuralMove                         => element.asJson
     case element: NeuralFailure                      => element.asJson
+    case element: NeuralProgress                     => element.asJson
   }
 
   extension [T <: WorkerProtocol](decoder: Decoder[T])
@@ -86,7 +95,8 @@ object WorkerProtocol:
       Decoder[GameActionWithScore].widen,
       Decoder[NeuralMoveRequest].widen,
       Decoder[NeuralMove].widen,
-      Decoder[NeuralFailure].widen
+      Decoder[NeuralFailure].widen,
+      Decoder[NeuralProgress].widen
     ).reduceLeft(_ or _)
 
 end WorkerProtocol

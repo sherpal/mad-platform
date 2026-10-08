@@ -136,6 +136,9 @@ final class SearchTree(rootState: GameState, config: SearchConfig, random: Rando
     if !root.isExpanded then NatArray.empty[(GameAction, Int)]
     else Array.tabulate(root.actions.length)(index => (root.actions(index), root.childVisits(index)))
 
+  /** How many simulations have been fully backed up so far. */
+  def completedSimulations: Int = simulationsFinished
+
   /** The most-visited move at the root. */
   def bestAction: GameAction =
     val visits = rootVisits

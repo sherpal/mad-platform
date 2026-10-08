@@ -7,6 +7,8 @@ import be.doeraene.workers.WorkerProtocol
 import io.circe.parser.decode
 import io.circe.syntax.*
 
+import scala.scalajs.js
+
 object EntryPoint:
 
   def main(args: Array[String]): Unit =
@@ -32,7 +34,13 @@ object EntryPoint:
              * one still thinking. */
             import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
             be.doeraene.madworker.NeuralSearch
-              .bestAction(m.gameState, m.simulations, madworker.siteRoot, madworker.ortAssetBase)
+              .bestAction(
+                m.gameState,
+                m.simulations,
+                madworker.siteRoot,
+                madworker.ortAssetBase,
+                GatedProgress()
+              )
               .onComplete {
                 case scala.util.Success((action, value)) =>
                   val response: WorkerProtocol = WorkerProtocol.NeuralMove(action, value)
@@ -57,5 +65,22 @@ object EntryPoint:
     // point: the browser doesn't start dispatching queued messages until the entry module has
     // finished evaluating. Signal readiness so the caller knows it's now safe to postMessage.
     self.postMessage(WorkerProtocol.readySignal)
+
+    /** Sends progress to the pipe, but no two messages closer than the closing time.
+      * @param closingTimeMs
+      *   Time the gate stays closed after the last message (in ms)
+      */
+    class GatedProgress(closingTimeMs: Double = 1000) extends (Int => Unit) {
+      private var lastMessageSentAt = 0L
+
+      private def now  = System.currentTimeMillis()
+      private def open = now - lastMessageSentAt >= closingTimeMs
+
+      private def rawSend(percent: Int): Unit =
+        lastMessageSentAt = now
+        self.postMessage((WorkerProtocol.NeuralProgress(percent): WorkerProtocol).asJson.noSpaces)
+
+      def apply(percent: Int): Unit = if open then rawSend(percent)
+    }
 
 end EntryPoint
